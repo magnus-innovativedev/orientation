@@ -1,13 +1,13 @@
 const { useState, useEffect, useCallback } = React;
 
 const PHOTO_ITEMS = [
-  { title: 'Reception', description: 'Reception area', icon: 'fa-building' },
-  { title: 'SCM / HOD', description: 'SCM and HOD', icon: 'fa-user-tie' },
-  { title: 'Classroom 1', description: 'Air conditioning, projector, sound system, and chairs', icon: 'fa-chalkboard-user' },
-  { title: 'Classroom 2', description: 'Mobile phones, laptops, tools, machines, bang, spoken English, and Hindi', icon: 'fa-laptop' },
-  { title: 'Classroom 3', description: 'Students in uniform (shirt, pants, and tag)', icon: 'fa-user-graduate' },
-  { title: 'Classroom 4', description: 'Young faculty members', icon: 'fa-person-chalkboard' },
-  { title: 'Lab', description: 'Latest machines and equipment', icon: 'fa-flask' }
+  { title: 'Reception', description: 'Your first stop for a warm welcome and help finding your way around.', icon: 'fa-building', detail: 'Start here when you arrive on campus.' },
+  { title: 'Meet the leadership team', description: 'Get to know your SCM and Heads of Department, and learn who to ask for support.', icon: 'fa-user-tie', detail: 'Student and department support' },
+  { title: 'Classroom 1', description: 'A comfortable learning space with air conditioning, a projector, sound system, and seating.', icon: 'fa-chalkboard-user', detail: 'Teaching and presentation space' },
+  { title: 'Classroom 2', description: 'Explore the laptops, tools, machines, and language-learning resources available to students.', icon: 'fa-laptop', detail: 'Technology and practical learning' },
+  { title: 'Classroom 3', description: 'Review the student uniform expectations, including your shirt, trousers, and ID tag.', icon: 'fa-user-graduate', detail: 'Student essentials and expectations' },
+  { title: 'Classroom 4', description: 'Meet the faculty who will guide you through your learning journey.', icon: 'fa-person-chalkboard', detail: 'Faculty and learning support' },
+  { title: 'The Lab', description: 'Discover the machines and equipment used for hands-on learning.', icon: 'fa-flask', detail: 'Equipment and practical experience' }
 ];
 
 const SCHEDULE_STEP = PHOTO_ITEMS.length + 2;
@@ -119,16 +119,38 @@ function OrientationApp() {
 
   useEffect(() => {
     const sections = document.querySelectorAll('.orientation-section');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && entry.target.isConnected) {
-          setCurrentStep(Number(entry.target.getAttribute('data-step')));
+    const updateCurrentStep = () => {
+      const viewportCenter = window.innerHeight * 0.45;
+      let closestSection = null;
+      let closestDistance = Infinity;
+
+      sections.forEach((section) => {
+        const bounds = section.getBoundingClientRect();
+        const distance = viewportCenter < bounds.top
+          ? bounds.top - viewportCenter
+          : viewportCenter > bounds.bottom
+            ? viewportCenter - bounds.bottom
+            : 0;
+
+        if (distance < closestDistance) {
+          closestSection = section;
+          closestDistance = distance;
         }
       });
-    }, { rootMargin: '-35% 0px -55% 0px' });
 
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+      if (closestSection) {
+        const nextStep = Number(closestSection.getAttribute('data-step'));
+        setCurrentStep((previousStep) => previousStep === nextStep ? previousStep : nextStep);
+      }
+    };
+
+    updateCurrentStep();
+    window.addEventListener('scroll', updateCurrentStep, { passive: true });
+    window.addEventListener('resize', updateCurrentStep);
+    return () => {
+      window.removeEventListener('scroll', updateCurrentStep);
+      window.removeEventListener('resize', updateCurrentStep);
+    };
   }, [started]);
 
   useEffect(() => {
@@ -141,6 +163,7 @@ function OrientationApp() {
   }, [started]);
 
   const progressPercent = (currentStep / TOTAL_STEPS) * 100;
+  const activeStep = STEPS[currentStep - 1];
 
   return (
     <div className="app-wrapper">
@@ -152,17 +175,24 @@ function OrientationApp() {
       </div>
 
       {/* Top Navigation Bar */}
-      <header>
-        <div className="brand-nav" onClick={() => goToStep(started ? 2 : 1)}>
+      <header className="site-header">
+        <button className="brand-nav" onClick={() => goToStep(started ? 2 : 1)} aria-label="Magnus home">
           <img src="/static/images/loginpageimage.png" alt="Orientation Logo" className="brand-nav-logo" />
           <span className="brand-title">MAGNUS</span>
-          <span className="brand-badge">2026</span>
-        </div>
+          <span className="brand-badge">STUDENT ORIENTATION</span>
+        </button>
 
         <div className="nav-stats">
           <div className="progress-track-wrapper">
-            <span className="progress-label">Step {currentStep} of {TOTAL_STEPS}</span>
-            <div className="progress-bar-outer">
+            <span className="progress-label" aria-live="polite">Step {currentStep} of {TOTAL_STEPS}</span>
+            <div
+              className="progress-bar-outer"
+              role="progressbar"
+              aria-label="Orientation progress"
+              aria-valuemin="1"
+              aria-valuemax={TOTAL_STEPS}
+              aria-valuenow={currentStep}
+            >
               <div
                 className="progress-bar-inner"
                 style={{ width: `${progressPercent}%` }}
@@ -178,16 +208,18 @@ function OrientationApp() {
           const isActive = s.id === currentStep;
           const isCompleted = s.id < currentStep;
           return (
-            <div
+            <button
+              type="button"
               key={s.id}
               className={`step-pill ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
               onClick={() => goToStep(s.id)}
+              aria-current={isActive ? 'step' : undefined}
             >
               <span className="pill-num">
                 {isCompleted ? <i className="fa-solid fa-check"></i> : s.id}
               </span>
               <span>{s.name}</span>
-            </div>
+            </button>
           );
         })}
       </nav>
@@ -201,21 +233,46 @@ function OrientationApp() {
                ============================================== */}
           {!started && <section id="orientation-step-1" data-step="1" className="step-slide orientation-section">
               <div className="hero-welcome-card">
-                {/* Logo with ambient glow on dark blue background */}
-                <div className="logo-container">
-                  <div className="logo-glow-halo"></div>
-                  <img src="/static/images/loginpageimage.png" alt="Orientation Brand Logo" className="hero-logo-img" />
+                <div className="hero-copy">
+                  <div className="hero-tag">
+                    <i className="fa-solid fa-sparkles"></i> YOUR MAGNUS JOURNEY STARTS HERE
+                  </div>
+                  <h1 className="hero-title">A great start begins with <span>feeling at home.</span></h1>
+                  <p className="hero-description">
+                    Get to know your campus, meet the people who will support you, and feel ready for your first day at Magnus.
+                  </p>
+                  <button className="btn-next" onClick={startOrientation}>
+                    <span>Begin your orientation</span>
+                    <i className="fa-solid fa-arrow-right"></i>
+                  </button>
+                  <div className="hero-notes">
+                    <span><i className="fa-regular fa-clock"></i> A quick guided tour</span>
+                    <span><i className="fa-solid fa-location-dot"></i> Explore your campus</span>
+                  </div>
                 </div>
-
-                <div>
-                  <h1 className="hero-title" style={{ fontSize: '3.2rem', fontWeight: 800, letterSpacing: '0.02em', marginBottom: '0px' }}>
-                    WELCOME TO MAGNUS
-                  </h1>
+                <div className="hero-art" aria-label="Magnus Institute of Technology">
+                  <div className="hero-art-glow"></div>
+                  <img src="/static/images/loginpageimage.png" alt="Magnus Institute of Technology logo" className="hero-logo-img" />
+                  <div className="hero-art-caption">
+                    <span>WELCOME TO MAGNUS</span>
+                    <strong>Your next chapter starts here.</strong>
+                  </div>
+                  <div className="hero-art-mark" aria-hidden="true"><i className="fa-solid fa-arrow-down"></i></div>
                 </div>
-                <button className="btn-next" onClick={startOrientation} style={{ marginTop: '28px' }}>
-                  <span>Start</span>
-                  <i className="fa-solid fa-arrow-down"></i>
-                </button>
+                <div className="hero-feature-strip">
+                  <div className="hero-feature">
+                    <span className="feature-icon"><i className="fa-solid fa-compass"></i></span>
+                    <span><strong>Find your way</strong><small>Explore key campus spaces</small></span>
+                  </div>
+                  <div className="hero-feature">
+                    <span className="feature-icon"><i className="fa-solid fa-people-group"></i></span>
+                    <span><strong>Meet your people</strong><small>Learn where to find support</small></span>
+                  </div>
+                  <div className="hero-feature">
+                    <span className="feature-icon"><i className="fa-solid fa-list-check"></i></span>
+                    <span><strong>Feel prepared</strong><small>Keep track of day-one essentials</small></span>
+                  </div>
+                </div>
               </div>
           </section>}
 
@@ -229,17 +286,19 @@ function OrientationApp() {
                 className="step-slide orientation-section photo-step"
                 key={item.title}
               >
-                <div className="hero-welcome-card photo-slide-card">
-                  <div className="photo-slide-heading">
+                <div className="hero-welcome-card photo-slide-card location-card">
+                  <div className="location-copy">
                     <div className="hero-tag">
-                      <i className={`fa-solid ${item.icon}`}></i> Orientation Stage {step}
+                      <i className={`fa-solid ${item.icon}`}></i> CAMPUS TOUR · {String(step - 1).padStart(2, '0')}
                     </div>
                     <h2>{item.title}</h2>
                     <p>{item.description}</p>
                   </div>
-                  <div className="photo-placeholder" role="img" aria-label={`${item.title} photo area`}>
-                    <i className={`fa-solid ${item.icon}`} aria-hidden="true"></i>
-                    <span>Photo area</span>
+                  <div className="location-visual">
+                    <span className="location-visual-label">GET TO KNOW THIS SPACE</span>
+                    <div className="location-icon"><i className={`fa-solid ${item.icon}`} aria-hidden="true"></i></div>
+                    <strong>{item.detail}</strong>
+                    <span className="location-step">MAGNUS · ORIENTATION</span>
                   </div>
                 </div>
               </section>
@@ -252,14 +311,14 @@ function OrientationApp() {
           {started && (
           <>
           <section id={`orientation-step-${SCHEDULE_STEP}`} data-step={SCHEDULE_STEP} className="step-slide orientation-section">
-              <div className="hero-welcome-card" style={{ textAlign: 'left', padding: '40px 36px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div className="hero-welcome-card content-card">
+                <div className="section-heading">
                   <div className="hero-tag">
-                    <i className="fa-solid fa-calendar-days"></i> Orientation Stage {SCHEDULE_STEP}
+                    <i className="fa-solid fa-calendar-days"></i> YOUR DAY AT A GLANCE
                   </div>
-                  <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: '#fff' }}>Orientation Schedule</h2>
-                  <p style={{ color: 'var(--text-secondary)', maxWidth: '580px', margin: '6px auto 0' }}>
-                    Key milestones and sessions arranged to give you a seamless on-boarding experience.
+                  <h2>Orientation Schedule</h2>
+                  <p>
+                    A sample guide to the day. Your team will share the confirmed timings and details.
                   </p>
                 </div>
 
@@ -270,8 +329,8 @@ function OrientationApp() {
                     </div>
                     <div className="timeline-content">
                       <div>
-                        <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 700 }}>Check-in & Welcome Kit</h4>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '2px' }}>Collect your official badge, ID card, lanyard, and welcome orientation packet.</p>
+                        <h4>Check-in & Welcome Kit</h4>
+                        <p>Get settled and collect the information you need to start the day.</p>
                       </div>
                       <span className="timeline-time">09:00 AM</span>
                     </div>
@@ -283,8 +342,8 @@ function OrientationApp() {
                     </div>
                     <div className="timeline-content">
                       <div>
-                        <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 700 }}>Keynote & Leadership Address</h4>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '2px' }}>Main auditorium address, mission briefing, and introduction of departments.</p>
+                        <h4>Welcome & introductions</h4>
+                        <p>Hear from the team and get an introduction to the institute.</p>
                       </div>
                       <span className="timeline-time">10:30 AM</span>
                     </div>
@@ -296,8 +355,8 @@ function OrientationApp() {
                     </div>
                     <div className="timeline-content">
                       <div>
-                        <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 700 }}>Campus & Facility Tour</h4>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '2px' }}>Guided walk through labs, library, recreation center, and dining halls.</p>
+                        <h4>Campus & facilities tour</h4>
+                        <p>Visit key learning spaces and get familiar with the campus.</p>
                       </div>
                       <span className="timeline-time">01:30 PM</span>
                     </div>
@@ -309,8 +368,8 @@ function OrientationApp() {
                     </div>
                     <div className="timeline-content">
                       <div>
-                        <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 700 }}>Peer Mixer & Networking</h4>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '2px' }}>Meet mentors, join student interest clubs, and enjoy refreshments.</p>
+                        <h4>Questions & next steps</h4>
+                        <p>Connect with the people around you and find out what comes next.</p>
                       </div>
                       <span className="timeline-time">03:30 PM</span>
                     </div>
@@ -323,23 +382,25 @@ function OrientationApp() {
                CHECKLIST: Interactive Essentials
                ============================================== */}
           <section id={`orientation-step-${CHECKLIST_STEP}`} data-step={CHECKLIST_STEP} className="step-slide orientation-section">
-              <div className="hero-welcome-card" style={{ textAlign: 'left', padding: '40px 36px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div className="hero-welcome-card content-card">
+                <div className="section-heading">
                   <div className="hero-tag">
-                    <i className="fa-solid fa-list-check"></i> Orientation Stage {CHECKLIST_STEP}
+                    <i className="fa-solid fa-list-check"></i> YOUR FIRST-DAY CHECKLIST
                   </div>
-                  <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: '#fff' }}>Day 1 Readiness Checklist</h2>
-                  <p style={{ color: 'var(--text-secondary)', maxWidth: '580px', margin: '6px auto 0' }}>
-                    Click to tick off items as you complete them. All tasks are saved automatically.
+                  <h2>Day 1 essentials</h2>
+                  <p>
+                    Tap an item to keep track of what you have taken care of.
                   </p>
                 </div>
 
                 <div className="checklist-container">
                   {checklist.map(item => (
-                    <div
+                    <button
+                      type="button"
                       key={item.id}
                       className={`check-item ${item.checked ? 'checked' : ''}`}
                       onClick={() => toggleChecklist(item.id)}
+                      aria-pressed={item.checked}
                     >
                       <div className="check-box">
                         <i className="fa-solid fa-check"></i>
@@ -348,7 +409,7 @@ function OrientationApp() {
                         <div className="check-title">{item.title}</div>
                         <div className="check-desc">{item.desc}</div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -372,30 +433,17 @@ function OrientationApp() {
                 >
                   <i className="fa-solid fa-circle-check"></i> Orientation Completed!
                 </div>
-                <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#fff', marginBottom: '12px' }}>
+                <h2 className="success-title">
                   You're All Set!
                 </h2>
-                <p
-                  style={{
-                    color: 'var(--text-secondary)',
-                    maxWidth: '600px',
-                    margin: '0 auto 30px',
-                    fontSize: '1.05rem',
-                    lineHeight: 1.6
-                  }}
-                >
+                <p className="success-description">
                   Congratulations on completing the orientation walkthrough. You have all the information and resources you need to embark on an incredible journey.
                 </p>
 
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div className="success-actions">
                   <button
                     className="btn-next"
                     onClick={restartOrientation}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      boxShadow: 'none'
-                    }}
                   >
                     <i className="fa-solid fa-rotate-left"></i>
                     <span>Review from Start</span>
@@ -412,6 +460,33 @@ function OrientationApp() {
 
         </div>
       </main>
+
+      {started && (
+        <footer className="action-footer">
+          <div className="footer-step">
+            <span className="footer-step-icon"><i className={`fa-solid ${activeStep.icon}`}></i></span>
+            <span><small>YOUR PROGRESS</small><strong>{activeStep.name}</strong></span>
+          </div>
+          <div className="button-group">
+            <button
+              type="button"
+              className="btn-prev"
+              onClick={() => goToStep(currentStep - 1)}
+              disabled={currentStep <= 2}
+            >
+              <i className="fa-solid fa-arrow-left"></i><span>Back</span>
+            </button>
+            <button
+              type="button"
+              className="btn-next"
+              onClick={() => currentStep === READY_STEP ? launchCelebration() : goToStep(currentStep + 1)}
+            >
+              <span>{currentStep === READY_STEP ? 'Celebrate' : 'Continue'}</span>
+              <i className={`fa-solid ${currentStep === READY_STEP ? 'fa-champagne-glasses' : 'fa-arrow-right'}`}></i>
+            </button>
+          </div>
+        </footer>
+      )}
 
     </div>
   );
