@@ -10,9 +10,7 @@ const PHOTO_ITEMS = [
   { title: 'The Lab', description: 'Discover the machines and equipment used for hands-on learning.', icon: 'fa-flask', detail: 'Equipment and practical experience' }
 ];
 
-const SCHEDULE_STEP = PHOTO_ITEMS.length + 2;
-const CHECKLIST_STEP = SCHEDULE_STEP + 1;
-const READY_STEP = CHECKLIST_STEP + 1;
+const READY_STEP = PHOTO_ITEMS.length + 2;
 
 const STEPS = [
   { id: 1, name: 'Welcome', icon: 'fa-sparkles' },
@@ -21,8 +19,6 @@ const STEPS = [
     name: item.title,
     icon: item.icon
   })),
-  { id: SCHEDULE_STEP, name: 'Schedule', icon: 'fa-calendar-days' },
-  { id: CHECKLIST_STEP, name: 'Checklist', icon: 'fa-list-check' },
   { id: READY_STEP, name: 'Ready', icon: 'fa-award' }
 ];
 
@@ -31,32 +27,6 @@ const TOTAL_STEPS = STEPS.length;
 function OrientationApp() {
   const [currentStep, setCurrentStep] = useState(1);
   const [started, setStarted] = useState(false);
-  const [checklist, setChecklist] = useState([
-    {
-      id: 1,
-      title: 'Access Orientation Web Portal',
-      desc: 'You are currently completing this orientation walkthrough!',
-      checked: true
-    },
-    {
-      id: 2,
-      title: 'Submit Official Identification & Documents',
-      desc: 'Upload emergency contact info and verify proof of enrollment / identification.',
-      checked: false
-    },
-    {
-      id: 3,
-      title: 'Configure Campus Wi-Fi & Email Account',
-      desc: 'Connect your laptop/phone to high-speed campus Wi-Fi using your institution credentials.',
-      checked: false
-    },
-    {
-      id: 4,
-      title: 'Review Orientation Handbook & Safety Rules',
-      desc: 'Read through student/employee codes, safety guidelines, and campus maps.',
-      checked: false
-    }
-  ]);
 
   const playBeep = (freq = 520, duration = 0.08) => {
     try {
@@ -92,13 +62,15 @@ function OrientationApp() {
     setCurrentStep(step);
     document.getElementById(`orientation-step-${step}`)?.scrollIntoView({
       behavior: 'smooth',
-      block: 'start'
+      block: 'nearest',
+      inline: 'start'
     });
   };
 
   const restartOrientation = () => {
     setStarted(false);
     setCurrentStep(1);
+    document.querySelector('.stage-container')?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -108,28 +80,20 @@ function OrientationApp() {
     setCurrentStep(2);
   };
 
-  const toggleChecklist = (id) => {
-    playBeep(640, 0.06);
-    setChecklist(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
-    );
-  };
-
   useEffect(() => {
-    const sections = document.querySelectorAll('.orientation-section');
+    const stage = document.querySelector('.stage-container');
+    const sections = stage?.querySelectorAll('.orientation-section') || [];
     const updateCurrentStep = () => {
-      const viewportCenter = window.innerHeight * 0.45;
+      const viewportCenter = window.innerWidth * 0.5;
       let closestSection = null;
       let closestDistance = Infinity;
 
       sections.forEach((section) => {
         const bounds = section.getBoundingClientRect();
-        const distance = viewportCenter < bounds.top
-          ? bounds.top - viewportCenter
-          : viewportCenter > bounds.bottom
-            ? viewportCenter - bounds.bottom
+        const distance = viewportCenter < bounds.left
+          ? bounds.left - viewportCenter
+          : viewportCenter > bounds.right
+            ? viewportCenter - bounds.right
             : 0;
 
         if (distance < closestDistance) {
@@ -145,9 +109,11 @@ function OrientationApp() {
     };
 
     updateCurrentStep();
+    stage?.addEventListener('scroll', updateCurrentStep, { passive: true });
     window.addEventListener('scroll', updateCurrentStep, { passive: true });
     window.addEventListener('resize', updateCurrentStep);
     return () => {
+      stage?.removeEventListener('scroll', updateCurrentStep);
       window.removeEventListener('scroll', updateCurrentStep);
       window.removeEventListener('resize', updateCurrentStep);
     };
@@ -157,7 +123,8 @@ function OrientationApp() {
     if (started) {
       document.getElementById('orientation-step-2')?.scrollIntoView({
         behavior: 'smooth',
-        block: 'start'
+        block: 'nearest',
+        inline: 'start'
       });
     }
   }, [started]);
@@ -269,8 +236,8 @@ function OrientationApp() {
                     <span><strong>Meet your people</strong><small>Learn where to find support</small></span>
                   </div>
                   <div className="hero-feature">
-                    <span className="feature-icon"><i className="fa-solid fa-list-check"></i></span>
-                    <span><strong>Feel prepared</strong><small>Keep track of day-one essentials</small></span>
+                    <span className="feature-icon"><i className="fa-solid fa-book-open"></i></span>
+                    <span><strong>Know what to expect</strong><small>Follow a simple campus walkthrough</small></span>
                   </div>
                 </div>
               </div>
@@ -305,154 +272,40 @@ function OrientationApp() {
             );
           })}
 
-          {/* ==============================================
-               SCHEDULE: Timeline
-               ============================================== */}
           {started && (
           <>
-          <section id={`orientation-step-${SCHEDULE_STEP}`} data-step={SCHEDULE_STEP} className="step-slide orientation-section">
-              <div className="hero-welcome-card content-card">
-                <div className="section-heading">
-                  <div className="hero-tag">
-                    <i className="fa-solid fa-calendar-days"></i> YOUR DAY AT A GLANCE
-                  </div>
-                  <h2>Orientation Schedule</h2>
-                  <p>
-                    A sample guide to the day. Your team will share the confirmed timings and details.
-                  </p>
-                </div>
-
-                <div className="timeline">
-                  <div className="timeline-item">
-                    <div className="timeline-bullet">
-                      <i className="fa-solid fa-circle"></i>
-                    </div>
-                    <div className="timeline-content">
-                      <div>
-                        <h4>Check-in & Welcome Kit</h4>
-                        <p>Get settled and collect the information you need to start the day.</p>
-                      </div>
-                      <span className="timeline-time">09:00 AM</span>
-                    </div>
-                  </div>
-
-                  <div className="timeline-item">
-                    <div className="timeline-bullet">
-                      <i className="fa-solid fa-circle"></i>
-                    </div>
-                    <div className="timeline-content">
-                      <div>
-                        <h4>Welcome & introductions</h4>
-                        <p>Hear from the team and get an introduction to the institute.</p>
-                      </div>
-                      <span className="timeline-time">10:30 AM</span>
-                    </div>
-                  </div>
-
-                  <div className="timeline-item">
-                    <div className="timeline-bullet">
-                      <i className="fa-solid fa-circle"></i>
-                    </div>
-                    <div className="timeline-content">
-                      <div>
-                        <h4>Campus & facilities tour</h4>
-                        <p>Visit key learning spaces and get familiar with the campus.</p>
-                      </div>
-                      <span className="timeline-time">01:30 PM</span>
-                    </div>
-                  </div>
-
-                  <div className="timeline-item">
-                    <div className="timeline-bullet">
-                      <i className="fa-solid fa-circle"></i>
-                    </div>
-                    <div className="timeline-content">
-                      <div>
-                        <h4>Questions & next steps</h4>
-                        <p>Connect with the people around you and find out what comes next.</p>
-                      </div>
-                      <span className="timeline-time">03:30 PM</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-          </section>
-
-          {/* ==============================================
-               CHECKLIST: Interactive Essentials
-               ============================================== */}
-          <section id={`orientation-step-${CHECKLIST_STEP}`} data-step={CHECKLIST_STEP} className="step-slide orientation-section">
-              <div className="hero-welcome-card content-card">
-                <div className="section-heading">
-                  <div className="hero-tag">
-                    <i className="fa-solid fa-list-check"></i> YOUR FIRST-DAY CHECKLIST
-                  </div>
-                  <h2>Day 1 essentials</h2>
-                  <p>
-                    Tap an item to keep track of what you have taken care of.
-                  </p>
-                </div>
-
-                <div className="checklist-container">
-                  {checklist.map(item => (
-                    <button
-                      type="button"
-                      key={item.id}
-                      className={`check-item ${item.checked ? 'checked' : ''}`}
-                      onClick={() => toggleChecklist(item.id)}
-                      aria-pressed={item.checked}
-                    >
-                      <div className="check-box">
-                        <i className="fa-solid fa-check"></i>
-                      </div>
-                      <div className="check-info">
-                        <div className="check-title">{item.title}</div>
-                        <div className="check-desc">{item.desc}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-          </section>
-
           {/* ==============================================
                READY: Completion
                ============================================== */}
-          <section id={`orientation-step-${READY_STEP}`} data-step={READY_STEP} className="step-slide orientation-section">
+          <section id={`orientation-step-${READY_STEP}`} data-step={READY_STEP} className="step-slide orientation-section completion-section">
               <div className="hero-welcome-card success-celebration">
-                <div className="badge-icon">
-                  <i className="fa-solid fa-award"></i>
+                <div className="success-copy">
+                  <div className="badge-icon" aria-hidden="true">
+                    <i className="fa-solid fa-check"></i>
+                  </div>
+                  <div className="hero-tag completion-tag">
+                    <i className="fa-solid fa-circle-check"></i> ORIENTATION COMPLETE
+                  </div>
+                  <h2 className="success-title">You're ready for what's next.</h2>
+                  <p className="success-description">
+                    You've completed your introduction to Magnus. Keep this guide nearby as you prepare for your first day.
+                  </p>
+                  <div className="success-actions">
+                    <button className="btn-next" onClick={restartOrientation}>
+                      <i className="fa-solid fa-rotate-left"></i>
+                      <span>Review orientation</span>
+                    </button>
+                    <button className="btn-next" onClick={launchCelebration}>
+                      <span>Finish orientation</span>
+                      <i className="fa-solid fa-arrow-right"></i>
+                    </button>
+                  </div>
+                  <p className="success-footnote">
+                    <i className="fa-regular fa-bookmark" aria-hidden="true"></i>
+                    You can return to this guide whenever you need a refresher.
+                  </p>
                 </div>
-                <div
-                  className="hero-tag"
-                  style={{
-                    background: 'rgba(34, 197, 94, 0.15)',
-                    borderColor: 'rgba(34, 197, 94, 0.3)',
-                    color: '#4ade80'
-                  }}
-                >
-                  <i className="fa-solid fa-circle-check"></i> Orientation Completed!
-                </div>
-                <h2 className="success-title">
-                  You're All Set!
-                </h2>
-                <p className="success-description">
-                  Congratulations on completing the orientation walkthrough. You have all the information and resources you need to embark on an incredible journey.
-                </p>
 
-                <div className="success-actions">
-                  <button
-                    className="btn-next"
-                    onClick={restartOrientation}
-                  >
-                    <i className="fa-solid fa-rotate-left"></i>
-                    <span>Review from Start</span>
-                  </button>
-                  <button className="btn-next" onClick={launchCelebration}>
-                    <i className="fa-solid fa-champagne-glasses"></i>
-                    <span>Celebrate & Finish</span>
-                  </button>
-                </div>
               </div>
           </section>
           </>
@@ -461,7 +314,7 @@ function OrientationApp() {
         </div>
       </main>
 
-      {started && (
+      {started && currentStep !== READY_STEP && (
         <footer className="action-footer">
           <div className="footer-step">
             <span className="footer-step-icon"><i className={`fa-solid ${activeStep.icon}`}></i></span>
@@ -479,10 +332,10 @@ function OrientationApp() {
             <button
               type="button"
               className="btn-next"
-              onClick={() => currentStep === READY_STEP ? launchCelebration() : goToStep(currentStep + 1)}
+              onClick={() => goToStep(currentStep + 1)}
             >
-              <span>{currentStep === READY_STEP ? 'Celebrate' : 'Continue'}</span>
-              <i className={`fa-solid ${currentStep === READY_STEP ? 'fa-champagne-glasses' : 'fa-arrow-right'}`}></i>
+              <span>Continue</span>
+              <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
         </footer>
