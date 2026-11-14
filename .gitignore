@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+data/
+static/media/*
+!static/media/.gitkeep

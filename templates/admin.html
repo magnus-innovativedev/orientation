@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><title>Counselling leads | Magnus</title>
+<style>
+ :root{--glass:rgba(255,255,255,.10);--lift:cubic-bezier(.22,.8,.3,1)}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 'Plus Jakarta Sans',system-ui,sans-serif;margin:0;min-height:100vh;color:#fff;
+  background:radial-gradient(circle at 12% 18%,rgba(96,165,250,.42),transparent 45%),radial-gradient(circle at 88% 28%,rgba(147,197,253,.3),transparent 50%),radial-gradient(circle at 50% 90%,rgba(37,99,235,.4),transparent 60%),#071a3a;background-attachment:fixed}
+ header{display:flex;gap:12px;align-items:center;padding:16px 24px;background:rgba(255,255,255,.07);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border-bottom:1px solid rgba(255,255,255,.14);animation:drop .6s var(--lift) both}
+ h1{font-size:18px;margin:0;flex:1;font-weight:800}
+ button{background:#fff;color:#1e3a8a;border:0;border-radius:99px;padding:9px 18px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(37,99,235,.4);transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+ button:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 14px 30px rgba(37,99,235,.55)} button:active{transform:scale(.96)}
+ #out{background:var(--glass);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:none}
+ .wrap{margin:20px 24px;padding:8px 12px;overflow-x:auto;border-radius:22px;background:var(--glass);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 8px 32px rgba(0,8,30,.3),inset 0 1px 0 rgba(255,255,255,.18);animation:rise .7s var(--lift) both}
+ table{border-collapse:collapse;width:100%;min-width:900px}
+ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap}
+ th{color:#bfdbfe;font-weight:700}
+ tbody tr{transition:background .25s,transform .25s var(--lift);animation:rise .5s var(--lift) backwards}
+ tbody tr:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
+ .pill{padding:3px 11px;border-radius:99px;background:rgba(255,255,255,.14)}.booked{background:rgba(96,165,250,.5);color:#fff}
+ a.ph{color:#bfdbfe!important}
+ #msg{padding:24px;color:rgba(255,255,255,.68)}
+ @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+ @keyframes drop{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:none}}
+ @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<header><h1>Counselling leads</h1><button id="csv">Download CSV</button><button id="out">Lock</button></header>
+<div class="wrap"><div id="msg"></div><table id="t" hidden><thead><tr>
+ <th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Docs</th><th>Status</th><th>Updated</th><th>Photo</th>
+</tr></thead><tbody></tbody></table></div>
+<script>
+const H=()=>({'X-Admin-Pin':sessionStorage.getItem('pin')||''});
+const money=n=>n?'₹'+Number(n).toLocaleString('en-IN'):'';
+async function load(){
+  if(!sessionStorage.getItem('pin')){const p=prompt('Admin PIN');if(!p)return;sessionStorage.setItem('pin',p);}
+  const r=await fetch('/api/admin/leads',{headers:H()});
+  if(!r.ok){sessionStorage.removeItem('pin');msg.textContent='Wrong PIN. Reload to try again.';return;}
+  const rows=await r.json();msg.textContent=rows.length?'':'No visitors yet.';t.hidden=!rows.length;
+  t.tBodies[0].innerHTML=rows.map(l=>`<tr>
+   <td>${esc(l.name)}</td><td>${esc(l.phone)}</td><td>${esc(l.place||'')}</td>
+   <td>${esc(l.course||'')}</td><td>${esc(l.payment||'')}</td><td>${money(l.booking_amount)}</td>
+   <td>${esc(l.batch||'')}</td><td>${Object.values(l.docs||{}).filter(Boolean).length}/6</td>
+   <td><span class="pill ${l.status==='booked'?'booked':''}">${esc(l.status||'')}</span></td>
+   <td>${esc((l.updated||'').replace('T',' '))}</td>
+   <td><a href="#" data-id="${esc(l.id)}" class="ph" style="color:#7dd3fc">View</a></td></tr>`).join('');
+}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+document.addEventListener('click',async e=>{
+  if(!e.target.classList.contains('ph'))return;e.preventDefault();
+  const r=await fetch('/api/admin/lead_photo/'+e.target.dataset.id,{headers:H()});
+  if(!r.ok)return alert('No photo uploaded yet');window.open(URL.createObjectURL(await r.blob()));
+});
+csv.onclick=async()=>{const r=await fetch('/api/admin/leads.csv',{headers:H()});if(!r.ok)return;
+  const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download='magnus_leads.csv';a.click();};
+out.onclick=()=>{sessionStorage.removeItem('pin');location.reload();};
+load();
+</script></body></html>
