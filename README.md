@@ -21,8 +21,9 @@ button labelled with its slot key (e.g. classrooms-1, jobs-0). Files land in sta
 you can also copy files there by hand. Images: jpg/png/webp. Video: mp4/webm.
 
 ## Changing numbers
-Fees, EMI, stipend, cheque, loan terms, documents and the next batch date live in CONFIG in main.py
+Fees, EMI, stipend, service-centre totals and area counts, cheque, loan terms, documents and the next batch date live in CONFIG in main.py
 (or override any key in a config.json beside it). The UI hard-codes none of them.
+The sample service-centre distributions are illustrative estimates, not verified centre records. Kerala districts are split into six city markers plus an "Other areas" bucket; the 700 outside Kerala are distributed across selected major cities.
 
 ## Files
 main.py                 routes, SQLite, config, admin API

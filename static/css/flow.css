@@ -85,6 +85,29 @@ main { overflow: visible; padding: 8px 0 24px; }
 .ftable thead th { color: var(--cyan); } .ftable tbody th { color: var(--text-secondary); font-weight: 600; width: 22%; }
 .ftable tr:last-child th, .ftable tr:last-child td { border-bottom: 0; }
 
+.location-dashboard { display: grid; gap: 12px; }
+.location-summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 16px; background: rgba(10,27,61,.8); }
+.location-summary > div { display: grid; gap: 2px; }
+.location-summary-label, .location-summary-foot { color: var(--text-secondary); font-size: .78rem; }
+.location-summary strong { color: var(--cyan); font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.1; }
+.location-breakdown { display: flex; flex-wrap: wrap; gap: 10px; }
+.location-breakdown > div { display: grid; gap: 2px; min-width: 128px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.04); }
+.location-breakdown > div strong { font-size: 1.35rem; }
+.location-breakdown > div span { color: var(--text-secondary); font-size: .75rem; }
+.location-zoom-level { padding: 8px 12px; border-radius: 99px; background: rgba(56,189,248,.1); color: #7dd3fc; font-size: .78rem; font-weight: 700; text-align: center; }
+.location-estimate-note { margin: 0; color: var(--text-secondary); font-size: .78rem; line-height: 1.5; }
+.service-map-wrap { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #dce9e7; }
+.service-map { width: 100%; height: min(62vh, 580px); min-height: 340px; }
+.service-map-icon { background: none; border: 0; }
+.service-map-badge { display: grid; place-items: center; min-width: 50px; min-height: 50px; padding: 8px; border: 2px solid #fff; border-radius: 50%; background: #0c8a7a; color: #fff; text-align: center; box-shadow: 0 5px 18px rgba(0,0,30,.35); transform: translate(-50%, -50%); }
+.service-map-badge strong { font-family: 'Space Grotesk', sans-serif; font-size: 1rem; line-height: 1; }
+.service-map-badge.total { background: #0a1b3d; border-color: #38bdf8; }
+.service-map-controls { position: absolute; z-index: 500; top: 12px; right: 12px; display: grid; gap: 6px; }
+.service-map-controls button { min-width: 40px; min-height: 40px; border: 1px solid rgba(10,27,61,.2); border-radius: 10px; background: #fff; color: #0a1b3d; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,30,.18); }
+.service-map-controls .service-map-focus { padding: 0 12px; font-size: .76rem; }
+.service-map-error { position: absolute; z-index: 500; left: 12px; bottom: 12px; max-width: min(420px, calc(100% - 24px)); margin: 0; padding: 9px 12px; border-radius: 10px; background: #fff; color: #9c2c22; font-size: .78rem; font-weight: 700; }
+.service-map-hint { margin: 0; color: var(--text-secondary); font-size: .82rem; }
+
 /* register + summary */
 .welcome, .summary { max-width: 640px; margin: 0 auto; padding: 28px; }
 .welcome h2, .summary h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; letter-spacing: -.02em; }
@@ -144,4 +167,12 @@ select option { color: #000; }
 .hero-panel-label, .hero-panel-foot { font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #6f86ab; }
 .hero-icon { width: 84px; height: 84px; border-radius: 22px; display: grid; place-items: center; font-size: 2rem; color: #38bdf8; background: rgba(56,189,248,.1); border: 1px solid var(--line); box-shadow: 0 0 40px rgba(56,189,248,.2); margin: 18px 0; }
 @media (max-width: 760px) { .hero { grid-template-columns: 1fr; padding: 22px; } .orientation-section.is-hero { min-height: 0; } }
+@media (max-width: 600px) {
+  .location-summary { align-items: flex-start; flex-direction: column; }
+  .location-breakdown { width: 100%; }
+  .location-breakdown > div { flex: 1; }
+  .location-zoom-level { align-self: flex-start; }
+  .service-map { height: 54vh; min-height: 320px; }
+  .service-map-controls { top: 8px; right: 8px; }
+}
 @media (prefers-reduced-motion: reduce) { .orientation-section.anim-fwd, .orientation-section.anim-back { animation: none; } }

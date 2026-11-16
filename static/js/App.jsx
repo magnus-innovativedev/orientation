@@ -69,7 +69,8 @@ const SLIDES = [
       card('Sports & arts', '', 'video', { n: 11 }), card('Abroad Placement', '', 'video', { n: 12 })] },
 
   { key: 'ojt', phase: 'career', title: 'On-the-Job Training', cols: 4, cards: [
-    card('Location', 'Zoom concept', 'photo', { n: 1 }), card('State / District', '', null, { n: 2 }),
+    card('Location', 'Zoom in to explore service-centre counts by area', null, { n: 1, type: 'location' }),
+    card('State / District', '', null, { n: 2 }),
     card('Stipend & Incentive', '', 'photo', { n: 3 }), card('Certificate', '', 'video', { n: 4 })] },
   { key: 'certs', phase: 'career', title: 'Certificates', cols: 3,
     banner: { t: 'Certificate distribution ceremony · once every month', d: 'Student branch with SCM, HOF, faculties & marketing staff' },
@@ -103,7 +104,7 @@ const STEPS = SLIDES.flatMap((s) => {
   const out = [];
   if (s.banner) out.push({ key: `${s.key}-banner`, phase: s.phase, type: 'hero', group: s.title,
     title: s.banner.t, desc: s.banner.d, kind: s.banner.slot ? 'photo' : null, slot: s.banner.slot });
-  s.cards.forEach((k, i) => out.push({ key: `${s.key}-${i}`, phase: s.phase, type: 'hero', group: s.title,
+  s.cards.forEach((k, i) => out.push({ key: `${s.key}-${i}`, phase: s.phase, type: k.type || 'hero', group: s.title,
     title: k.t, desc: k.d, kind: k.m, slot: `${s.key}-${i}`, chips: k.chips }));
   return out;
 });
@@ -125,6 +126,134 @@ function HeroSlide({ s, mp, phase, n }) {
           : <div className="hero-icon" aria-hidden="true"><i className={`fa-solid ${phase.icon}`}></i></div>}
         <span className="hero-panel-foot">MAGNUS · ORIENTATION</span>
       </aside>
+    </div>
+  );
+}
+
+function LocationSlide({ cfg }) {
+  const mapElement = useRef(null);
+  const mapInstance = useRef(null);
+  const [zoom, setZoom] = useState(4);
+  const [mapError, setMapError] = useState('');
+  const serviceCentres = cfg.service_centres;
+  const areas = serviceCentres.areas;
+  const districts = serviceCentres.kerala_districts;
+  const outsideMajorCities = serviceCentres.outside_major_cities;
+  const mapAreas = areas.filter((area) => Number.isFinite(area.latitude) && Number.isFinite(area.longitude));
+  const focusArea = mapAreas[0];
+
+  useEffect(() => {
+    if (!window.L) {
+      setMapError('The map could not be loaded. Check your internet connection and reload.');
+      return undefined;
+    }
+
+    const leaflet = window.L;
+    const map = leaflet.map(mapElement.current, { zoomControl: false, scrollWheelZoom: true })
+      .setView([22.5, 79], 4);
+    mapInstance.current = map;
+
+    const tiles = leaflet.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community',
+    }).addTo(map);
+    tiles.on('tileerror', () => setMapError('Map tiles could not be loaded. Check your internet connection.'));
+
+    const makeIcon = (count, label, total = false) => {
+      const badge = document.createElement('span');
+      badge.className = `service-map-badge${total ? ' total' : ''}`;
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', `${Number(count).toLocaleString('en-IN')} service centres, ${label}`);
+      const value = document.createElement('strong');
+      value.textContent = Number(count).toLocaleString('en-IN');
+      badge.append(value);
+      return leaflet.divIcon({ className: 'service-map-icon', html: badge, iconSize: null });
+    };
+
+    const totalMarker = leaflet.marker([22.5, 79], {
+      icon: makeIcon(serviceCentres.total, 'Service centres · India', true),
+      keyboard: false,
+    }).addTo(map);
+    const districtMarkers = districts.map((district) => leaflet.marker([district.latitude, district.longitude], {
+      icon: makeIcon(district.count, district.name),
+      keyboard: false,
+    }));
+    const areaMarkers = districts.flatMap((district) => district.areas.map((area) => leaflet.marker(
+      [area.latitude, area.longitude],
+      { icon: makeIcon(area.count, `${area.name} · ${district.name}`), keyboard: false },
+    )));
+    const outsideMarkers = outsideMajorCities.map((city) => leaflet.marker([city.latitude, city.longitude], {
+      icon: makeIcon(city.count, city.name),
+      keyboard: false,
+    }));
+
+    const syncZoom = () => {
+      const currentZoom = map.getZoom();
+      setZoom(currentZoom);
+      if (currentZoom >= 10) {
+        [totalMarker, ...districtMarkers].forEach((marker) => { if (map.hasLayer(marker)) map.removeLayer(marker); });
+        [...areaMarkers, ...outsideMarkers].forEach((marker) => { if (!map.hasLayer(marker)) marker.addTo(map); });
+      } else if (currentZoom >= 7) {
+        [totalMarker, ...areaMarkers].forEach((marker) => { if (map.hasLayer(marker)) map.removeLayer(marker); });
+        [...districtMarkers, ...outsideMarkers].forEach((marker) => { if (!map.hasLayer(marker)) marker.addTo(map); });
+      } else if (currentZoom >= 5) {
+        [...districtMarkers, ...areaMarkers, totalMarker].forEach((marker) => { if (map.hasLayer(marker)) map.removeLayer(marker); });
+        outsideMarkers.forEach((marker) => { if (!map.hasLayer(marker)) marker.addTo(map); });
+      } else {
+        [...districtMarkers, ...areaMarkers, ...outsideMarkers].forEach((marker) => { if (map.hasLayer(marker)) map.removeLayer(marker); });
+        if (!map.hasLayer(totalMarker)) totalMarker.addTo(map);
+      }
+    };
+    map.on('zoomend', syncZoom);
+    syncZoom();
+
+    return () => {
+      map.off('zoomend', syncZoom);
+      map.remove();
+      mapInstance.current = null;
+    };
+  }, [serviceCentres]);
+
+  const zoomToArea = () => {
+    if (mapInstance.current && focusArea) mapInstance.current.flyTo([focusArea.latitude, focusArea.longitude], 8);
+  };
+  const adjustZoom = (change) => {
+    if (mapInstance.current) {
+      mapInstance.current.setZoom(mapInstance.current.getZoom() + change, { animate: false });
+    }
+  };
+
+  return (
+    <div className="location-dashboard">
+      <div className="location-summary">
+        <div>
+          <span className="location-summary-label">Number of service centres</span>
+          <strong>{Number(serviceCentres.total).toLocaleString('en-IN')}</strong>
+          <span className="location-summary-foot">Across India</span>
+        </div>
+        <div className="location-breakdown" aria-label="Service-centre split by area">
+          {areas.map((area) => (
+            <div key={area.name}>
+              <strong>{Number(area.count).toLocaleString('en-IN')}</strong>
+              <span>{area.name}</span>
+            </div>
+          ))}
+        </div>
+        <span className="location-zoom-level" aria-live="polite">
+          {zoom >= 10 ? 'City & area view · counts only' : zoom >= 7 ? 'Kerala district view · counts only' : zoom >= 5 ? 'Outside Kerala major cities · counts only' : 'India view · zoom in for area counts'}
+        </span>
+      </div>
+      <p className="location-estimate-note">{serviceCentres.estimate_basis}</p>
+      <div className="service-map-wrap">
+        <div ref={mapElement} className="service-map" role="application" aria-label="Interactive service-centre map of India" />
+        <div className="service-map-controls" aria-label="Map controls">
+          <button type="button" aria-label="Zoom in" onClick={() => adjustZoom(1)}>+</button>
+          <button type="button" aria-label="Zoom out" onClick={() => adjustZoom(-1)}>−</button>
+          {focusArea && <button type="button" className="service-map-focus" onClick={zoomToArea}>Zoom to {focusArea.name}</button>}
+        </div>
+        {mapError && <p className="service-map-error" role="alert">{mapError}</p>}
+      </div>
+      <p className="service-map-hint">Zoom to Kerala for district counts, then zoom in for six city counts and an other-areas count. Outside Kerala shows major-city counts.</p>
     </div>
   );
 }
@@ -582,6 +711,7 @@ function App() {
   const acknowledged = !!(lead.acknowledgments || {})[s.key];
   const body = {
     register: <RegisterSlide lead={lead} setLead={setLead} onNew={newVisitor} onStart={() => go(1)} />,
+    location: <LocationSlide cfg={cfg} />,
     courses: <CoursesSlide cfg={cfg} mp={mp} />, compare: <CompareSlide cfg={cfg} />,
     fees: <FeesSlide cfg={cfg} lead={lead} patch={patch} />, payment: <PaymentSlide cfg={cfg} lead={lead} patch={patch} />,
     terms: <TermsSlide cfg={cfg} lead={lead} patch={patch} mp={mp} />, loan: <LoanSlide cfg={cfg} mp={mp} />,
