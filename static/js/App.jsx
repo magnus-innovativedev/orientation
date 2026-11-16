@@ -662,13 +662,159 @@ function DocsSlide({ cfg, lead, patch }) {
 }
 
 function BookingSlide({ cfg, lead, patch }) {
-  const b = cfg.booking, nb = cfg.next_batch, fileRef = useRef();
+  const b = cfg.booking, nb = cfg.next_batch, fileRef = useRef(), cameraVideoRef = useRef();
   const [msg, setMsg] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState('');
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  useEffect(() => {
+    if (!cameraOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setCameraOpen(false);
+        setCameraStream(null);
+        setCameraError('');
+        setCameraReady(false);
+      }
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [cameraOpen]);
+  useEffect(() => {
+    if (!cameraOpen || !cameraStream || !cameraVideoRef.current) return undefined;
+    const video = cameraVideoRef.current;
+    video.srcObject = cameraStream;
+    video.play().catch((error) => {
+      console.error('Could not start the student camera preview.', error);
+      setCameraError('Camera preview could not start. Close the camera and use Upload photo.');
+    });
+    return () => {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      video.srcObject = null;
+    };
+  }, [cameraOpen, cameraStream]);
+  const closeCamera = () => {
+    setCameraOpen(false);
+    setCameraStream(null);
+    setCameraError('');
+    setCameraReady(false);
+  };
+  const openCamera = async () => {
+    setMsg('');
+    setCameraError('');
+    setCameraReady(false);
+    setCameraOpen(true);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Camera access is unavailable in this browser. Close the camera and use Upload photo.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'user' },
+          aspectRatio: { ideal: 4 / 3 },
+          width: { ideal: 4000 },
+          height: { ideal: 3000 },
+        },
+      });
+      setCameraStream(stream);
+    } catch (error) {
+      console.error('Could not open the student camera.', error);
+      setCameraError(error.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow access or close the camera and use Upload photo.'
+        : `Could not open the camera: ${error.message || 'Camera access failed.'} Close it and use Upload photo.`);
+    }
+  };
+  const capturePhoto = async () => {
+    const video = cameraVideoRef.current;
+    if (!cameraStream || !video) return;
+    setCameraBusy(true);
+    setCameraError('');
+    let bitmap;
+    try {
+      let nativePhoto;
+      const track = cameraStream.getVideoTracks()[0];
+      if (window.ImageCapture && track) {
+        try {
+          const capture = new window.ImageCapture(track);
+          const capabilities = await capture.getPhotoCapabilities();
+          const settings = {};
+          if (capabilities.imageWidth && capabilities.imageHeight
+            && capabilities.imageWidth.max >= 4000 && capabilities.imageHeight.max >= 3000) {
+            settings.imageWidth = 4000;
+            settings.imageHeight = 3000;
+          }
+          if (Array.isArray(capabilities.fillLightMode) && capabilities.fillLightMode.includes('auto')) {
+            settings.fillLightMode = 'auto';
+          }
+          nativePhoto = await capture.takePhoto(settings);
+          if (typeof createImageBitmap === 'function') bitmap = await createImageBitmap(nativePhoto);
+        } catch (error) {
+          console.warn('Using the camera preview because high-resolution photo capture is unavailable.', error);
+        }
+      }
+
+      const source = bitmap || video;
+      const sourceWidth = bitmap ? bitmap.width : video.videoWidth;
+      const sourceHeight = bitmap ? bitmap.height : video.videoHeight;
+      if (!sourceWidth || !sourceHeight) throw new Error('The camera is not ready. Please try again.');
+      const targetAspect = 4 / 3;
+      let cropWidth = sourceWidth;
+      let cropHeight = sourceHeight;
+      let cropX = 0;
+      let cropY = 0;
+      if (sourceWidth / sourceHeight > targetAspect) {
+        cropWidth = Math.round(sourceHeight * targetAspect);
+        cropX = Math.round((sourceWidth - cropWidth) / 2);
+      } else {
+        cropHeight = Math.round(sourceWidth / targetAspect);
+        cropY = Math.round((sourceHeight - cropHeight) / 2);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Could not prepare the photo. Please try again.');
+      context.drawImage(source, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      const jpeg = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Could not create the JPEG photo.')),
+          'image/jpeg', 0.95);
+      });
+      if (bitmap) bitmap.close();
+      const photo = new File([jpeg], `student-photo-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      const fd = new FormData();
+      fd.append('file', photo);
+      await api(`/api/leads/${lead.id}/photo`, { method: 'POST', body: fd });
+      setMsg(`Photo saved (${canvas.width} x ${canvas.height} px, JPEG).`);
+      patch({ photo: true });
+      closeCamera();
+    } catch (error) {
+      if (bitmap) bitmap.close();
+      console.error('Could not capture or save the student photo.', error);
+      setCameraError(error.message || 'Could not capture the photo. Try again or close the camera and use Upload photo.');
+    } finally {
+      setCameraBusy(false);
+    }
+  };
   const upload = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);
-    try { await api(`/api/leads/${lead.id}/photo`, { method: 'POST', body: fd }); setMsg('Photo saved.'); patch({ photo: true }); }
-    catch (x) { setMsg(x.message); }
+    try {
+      await api(`/api/leads/${lead.id}/photo`, { method: 'POST', body: fd });
+      setMsg('Photo saved.');
+      patch({ photo: true });
+      closeCamera();
+    } catch (x) {
+      setMsg(x.message);
+      if (cameraOpen) setCameraError(x.message);
+    }
+    e.target.value = '';
   };
   const left = lead.booking_amount ? Math.max(b.first_payment_total - lead.booking_amount, 0) : null;
   const when = `${new Date(nb.date + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}, ${nb.time}`;
@@ -676,10 +822,10 @@ function BookingSlide({ cfg, lead, patch }) {
     <div className="fgrid" style={{ '--cols': 2 }}>
       <article className="fcard">
         <h3>Student photo</h3>
-        <button type="button" className="media drop" onClick={() => fileRef.current.click()}>
-          <div className="media-empty"><i className="fa-solid fa-camera"></i><span>{lead.photo ? 'Photo uploaded · tap to replace' : 'Tap to take or upload a photo'}</span></div>
+        <button type="button" className="media drop" onClick={openCamera}>
+          <div className="media-empty"><i className="fa-solid fa-camera"></i><span>{lead.photo ? 'Photo uploaded · tap to take or replace' : 'Tap to open camera or upload a photo'}</span></div>
         </button>
-        <input ref={fileRef} type="file" hidden accept="image/*" capture="user" onChange={upload} />
+        <input ref={fileRef} type="file" hidden accept="image/jpeg,image/png,image/webp,image/gif" capture="user" onChange={upload} />
         {msg && <p className="muted" role="status">{msg}</p>}
         <div className="note"><small>Next batch</small><b>{when}</b></div>
       </article>
@@ -702,6 +848,34 @@ function BookingSlide({ cfg, lead, patch }) {
           </>
         )}
       </article>
+      {cameraOpen && (
+        <div className="camera-dialog-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeCamera();
+        }}>
+          <section className="camera-dialog" role="dialog" aria-modal="true" aria-labelledby="camera-dialog-title">
+            <header className="camera-dialog-header">
+              <h2 id="camera-dialog-title">Student photo</h2>
+              <button type="button" className="camera-dialog-close" onClick={closeCamera} autoFocus
+                aria-label="Close camera"><i className="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            </header>
+            <div className="camera-preview">
+              {cameraStream
+                ? <video ref={cameraVideoRef} autoPlay playsInline muted aria-label="Camera preview"
+                    onLoadedMetadata={() => setCameraReady(true)} />
+                : <p role={cameraError ? 'alert' : 'status'}>{cameraError || 'Waiting for camera permission…'}</p>}
+              {cameraStream && (
+                <button type="button" className="camera-capture-button" onClick={capturePhoto}
+                  aria-label={cameraBusy ? 'Saving photo' : 'Capture photo'} title="Capture photo"
+                  disabled={!cameraReady || cameraBusy}>
+                  <i className={`fa-solid ${cameraBusy ? 'fa-spinner fa-spin' : 'fa-camera'}`} aria-hidden="true"></i>
+                </button>
+              )}
+            </div>
+            <p className="camera-settings">4:3 · 12 MP target (4000 x 3000) · JPEG 95% · auto orientation · auto flash when supported</p>
+            {cameraError && cameraStream && <p className="camera-error" role="alert">{cameraError}</p>}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

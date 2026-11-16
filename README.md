@@ -16,6 +16,10 @@ Informational slides require a slide-specific acknowledgment before moving forwa
 Continue is blocked until: registered, course chosen, payment chosen, terms accepted, booking amount chosen.
 Interactive buttons and controls play a subtle click sound when browser audio is enabled.
 Completing the final step plays a short success chime.
+On Batch Assignment, tap Student photo or Capture photo to open the camera when permitted; Upload photo
+opens the file picker. The camera requests 4:3 and
+4000 x 3000 capture, saves a high-quality JPEG with automatic orientation, and requests auto flash
+when the device supports it. The actual resolution depends on the camera; photo upload remains available.
 
 ## Adding photos and videos
 Tap the lock icon (top right) or a media slot's "Sign in to upload" button and enter ADMIN_PIN.
