@@ -315,14 +315,33 @@ def upload_media(slot):
     need_admin()
     f = request.files.get("file")
     slot = secure_filename(slot)
+    kind = request.form.get("kind")
     ext = (f.filename.rsplit(".", 1)[-1].lower() if f and "." in f.filename else "")
-    if not f or not slot or ext not in IMG_EXT | VID_EXT:
-        abort(400, "Upload an image (jpg, png, webp) or video (mp4, webm)")
+    allowed_extensions = IMG_EXT if kind == "photo" else VID_EXT if kind == "video" else set()
+    if not f or not slot or ext not in allowed_extensions:
+        abort(400, "Choose an image for a photo slot or a video for a video slot")
     for old in os.listdir(MEDIA):  # one file per slot
         if old.rpartition(".")[0] == slot:
             os.remove(os.path.join(MEDIA, old))
     f.save(os.path.join(MEDIA, f"{slot}.{ext}"))
     return jsonify(media_map().get(slot))
+
+
+@app.delete("/api/media/<slot>")
+def delete_media(slot):
+    need_admin()
+    slot = secure_filename(slot)
+    if not slot:
+        abort(400, "Invalid media slot")
+    removed = False
+    for filename in os.listdir(MEDIA):
+        stored_slot, _, ext = filename.rpartition(".")
+        if stored_slot == slot and ext.lower() in IMG_EXT | VID_EXT:
+            os.remove(os.path.join(MEDIA, filename))
+            removed = True
+    if not removed:
+        abort(404, "Media not found")
+    return jsonify(ok=True)
 
 
 @app.get("/api/admin/leads")

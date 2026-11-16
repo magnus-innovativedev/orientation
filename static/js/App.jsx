@@ -55,8 +55,22 @@ const SLIDES = [
   { key: 'learn', phase: 'course', title: 'What You Will Learn', cols: 2,
     banner: { t: 'With the latest equipment & machines', d: 'Manual & automatic', slot: 'learn-banner' },
     cards: [
-      card('Mobile & laptop · A to Z', '', 'photo', { chips: ['Hardware', 'Software', 'Sales', 'Service', 'Chip level'] }),
-      card('Basic electronics + brands', '', 'photo', { chips: ['Nokia', 'Redmi', 'Realme', 'Oppo', 'Vivo', 'Samsung', 'iPhone'] })] },
+      card('Mobile & laptop · A to Z', '', 'photo', { chips: [
+        { label: 'Hardware', icon: 'fa-desktop' },
+        { label: 'Software', icon: 'fa-code' },
+        { label: 'Sales', icon: 'fa-cart-shopping' },
+        { label: 'Service', icon: 'fa-screwdriver-wrench' },
+        { label: 'Chip level', icon: 'fa-microchip' },
+      ] }),
+      card('Basic electronics + brands', '', 'photo', { brands: [
+        { name: 'Nokia', logo: 'https://cdn.simpleicons.org/nokia/FFFFFF' },
+        { name: 'Redmi', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/f9/REDMI_logo.svg' },
+        { name: 'Realme', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/f5/Realme-realme-_logo_box-RGB-01_with_out_back_ground.svg' },
+        { name: 'Oppo', logo: 'https://cdn.simpleicons.org/oppo/FFFFFF' },
+        { name: 'Vivo', logo: 'https://cdn.simpleicons.org/vivo/FFFFFF' },
+        { name: 'Samsung', logo: 'https://cdn.simpleicons.org/samsung/FFFFFF' },
+        { name: 'iPhone', logo: 'https://cdn.simpleicons.org/apple/FFFFFF' },
+      ] })] },
   { key: 'benefits1', phase: 'course', title: 'Additional Benefits (1–6)', cols: 2, rows: true, cards: [
     card('AI office automation', '', 'video', { n: 1 }), card('AI tech bot', '', 'video', { n: 2 }),
     card('Business class', '', 'video', { n: 3 }),
@@ -84,7 +98,9 @@ const SLIDES = [
     card('Owner: mobile service centre & sales', '', 'video', { n: 7 }), card('Tech vlogger', '', 'video', { n: 8 })] },
   { key: 'growth', phase: 'career', title: 'Career Growth', cols: 3, single: true,
     banner: { t: 'Age comparison', d: 'Mentally · Physically · Financially', slot: 'growth-banner' }, cards: [
-      card('Age 18', 'Job', null), card('Age 20', '₹20,000 / ₹40,000 · Car', null), card('Age 23', 'Marriage', null)] },
+      card('Age 18', 'Job', null, { icon: 'fa-briefcase' }),
+      card('Age 20', '₹20,000 / ₹40,000 · Car', null, { icon: 'fa-car' }),
+      card('Age 23', 'Marriage', null, { icon: 'fa-heart-handshake' })] },
 
   { key: 'compare', phase: 'fees', type: 'compare', title: 'Why Laptop?' },
   { key: 'fees', phase: 'fees', type: 'fees', title: 'Choose your course' },
@@ -105,7 +121,7 @@ const STEPS = SLIDES.flatMap((s) => {
   if (s.banner) out.push({ key: `${s.key}-banner`, phase: s.phase, type: 'hero', group: s.title,
     title: s.banner.t, desc: s.banner.d, kind: s.banner.slot ? 'photo' : null, slot: s.banner.slot });
   s.cards.forEach((k, i) => out.push({ key: `${s.key}-${i}`, phase: s.phase, type: k.type || 'hero', group: s.title,
-    title: k.t, desc: k.d, kind: k.m, slot: `${s.key}-${i}`, chips: k.chips }));
+    title: k.t, desc: k.d, kind: k.m, slot: `${s.key}-${i}`, chips: k.chips, brands: k.brands }));
   return out;
 });
 
@@ -116,7 +132,23 @@ function HeroSlide({ s, mp, phase, n }) {
         <span className="hero-eyebrow"><i className={`fa-solid ${phase.icon}`}></i>{phase.name} · {String(n).padStart(2, '0')}</span>
         <h2>{s.title}</h2>
         {s.desc && <p>{s.desc}</p>}
-        {s.chips && <div className="chips">{s.chips.map((c) => <span className="chip" key={c}>{c}</span>)}</div>}
+        {s.brands && <div className="chips hero-brand-logos" aria-label="Brands">
+          {s.brands.map((brand) => (
+            <button type="button" className="chip hero-brand-logo" key={brand.name}
+              onClick={() => mp.viewMedia({ url: brand.logo, type: 'photo', label: brand.name })}
+              aria-label={`Open ${brand.name} logo`}>
+              <img src={brand.logo} alt={brand.name} loading="lazy" onError={(event) => {
+                console.error(`Brand logo failed to load for ${brand.name}.`);
+                event.currentTarget.hidden = true;
+              }} />
+            </button>
+          ))}
+        </div>}
+        {s.chips && !s.brands && <div className="chips">{s.chips.map((c) => (
+          <span className="chip hero-topic-chip" key={c.label}>
+            <i className={`fa-solid ${c.icon}`} aria-hidden="true"></i>{c.label}
+          </span>
+        ))}</div>}
         <small className="hero-group">{s.group}</small>
       </div>
       <aside className="hero-panel">
@@ -268,7 +300,7 @@ const gate = (s, lead) => {
 };
 
 /* ---------- media slot ---------- */
-function MediaSlot({ slot, kind, media, admin, pin, reload, label }) {
+function MediaSlot({ slot, kind, media, admin, pin, reload, label, unlock, viewMedia }) {
   const input = useRef();
   const m = media[slot];
   const upload = async (e) => {
@@ -276,24 +308,38 @@ function MediaSlot({ slot, kind, media, admin, pin, reload, label }) {
     if (!f) return;
     const fd = new FormData();
     fd.append('file', f);
+    fd.append('kind', kind);
     try { await api(`/api/media/${slot}`, { method: 'POST', headers: { 'X-Admin-Pin': pin }, body: fd }); reload(); }
     catch (err) { alert(err.message); }
   };
+  const remove = async () => {
+    try { await api(`/api/media/${slot}`, { method: 'DELETE', headers: { 'X-Admin-Pin': pin } }); reload(); }
+    catch (err) { alert(err.message); }
+  };
+  const openViewer = () => viewMedia({ ...m, label: label || slot });
   return (
     <div className={`media ${m ? 'filled' : ''}`}>
-      {m ? (m.type === 'video'
-        ? <video src={m.url} controls playsInline preload="metadata" />
-        : <img src={m.url} alt={label || slot} />)
+      {m ? <button type="button" className="media-open-trigger" onClick={openViewer}
+          aria-label={`Open ${label || slot} ${m.type === 'video' ? 'video' : 'photo'}`}>
+          {m.type === 'video'
+            ? <video src={m.url} playsInline preload="metadata" aria-hidden="true" tabIndex="-1" />
+            : <img src={m.url} alt="" />}
+        </button>
         : <div className="media-empty">
             <i className={`fa-solid ${kind === 'video' ? 'fa-circle-play' : 'fa-camera'}`}></i>
             <span>{kind === 'video' ? 'Video' : 'Photo'} coming soon</span>
           </div>}
       {admin && <>
         <button type="button" className="media-up" onClick={() => input.current.click()}>
-          <i className="fa-solid fa-upload"></i> {m ? 'Replace' : 'Upload'} · {slot}
+          <i className="fa-solid fa-upload"></i> {m ? 'Replace' : 'Upload'} {kind} · {slot}
         </button>
-        <input ref={input} type="file" hidden accept="image/*,video/*" onChange={upload} />
+        {m && <button type="button" className="media-remove" onClick={remove} title="Remove uploaded media"
+          aria-label={`Remove media from ${slot}`}><i className="fa-solid fa-xmark" aria-hidden="true"></i></button>}
+        <input ref={input} type="file" hidden accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={upload} />
       </>}
+      {!admin && <button type="button" className="media-up" onClick={unlock}>
+        <i className="fa-solid fa-lock"></i> Sign in to upload {kind}
+      </button>}
     </div>
   );
 }
@@ -310,8 +356,9 @@ function GenericSlide({ s, mp }) {
       )}
       <div className="fgrid" style={{ '--cols': s.cols }}>
         {s.cards.map((k, i) => (
-          <article className={`fcard ${s.rows ? 'row' : ''}`} key={i}>
+          <article className={`fcard ${s.rows ? 'row' : ''} ${k.icon ? 'career-growth-card' : ''}`} key={i}>
             {k.n && <span className="num">{k.n}</span>}
+            {k.icon && <span className="career-growth-icon" aria-hidden="true"><i className={`fa-solid ${k.icon}`}></i></span>}
             {!s.rows && k.m && <MediaSlot {...mp} slot={`${s.key}-${i}`} kind={k.m} label={k.t} />}
             <div className="ftext">
               <h3>{k.t}{k.tag && <em className="chip tag">{k.tag}</em>}</h3>
@@ -639,6 +686,11 @@ function App() {
   const [dir, setDir] = useState('fwd');
   const [toast, setToast] = useState('');
   const [pin, setPin] = useState(sessionStorage.getItem('pin') || '');
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState(null);
   const ref = useRef(lead); ref.current = lead;
   const s = STEPS[i];
   const admin = !!pin;
@@ -690,15 +742,44 @@ function App() {
     if (done && window.confetti) window.confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
   };
   const newVisitor = () => { localStorage.removeItem('leadId'); setLead({}); setI(0); };
-  const unlock = async () => {
+  const unlock = () => {
     if (admin) { sessionStorage.removeItem('pin'); setPin(''); return; }
-    const p = prompt('Counsellor PIN'); if (!p) return;
-    try { await api('/api/admin/login', send('POST', {}, p)); sessionStorage.setItem('pin', p); setPin(p); }
-    catch (e) { setToast('Wrong PIN'); }
+    setPinInput('');
+    setPinError('');
+    setPinDialogOpen(true);
+  };
+  const closePinDialog = () => {
+    setPinDialogOpen(false);
+    setPinInput('');
+    setPinError('');
+  };
+  const submitPin = async (event) => {
+    event.preventDefault();
+    const candidate = pinInput.trim();
+    if (!candidate) { setPinError('Enter the Counsellor PIN.'); return; }
+    setPinBusy(true);
+    try {
+      await api('/api/admin/login', send('POST', {}, candidate));
+      sessionStorage.setItem('pin', candidate);
+      setPin(candidate);
+      closePinDialog();
+    } catch (err) {
+      setPinError(err.message === 'Admin PIN required' ? 'Incorrect PIN. Please try again.' : `Could not sign in: ${err.message}`);
+    } finally {
+      setPinBusy(false);
+    }
   };
 
   useEffect(() => {
     const k = (e) => {
+      if (viewingMedia) {
+        if (e.key === 'Escape') setViewingMedia(null);
+        return;
+      }
+      if (pinDialogOpen) {
+        if (e.key === 'Escape') closePinDialog();
+        return;
+      }
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
       if (e.key === 'ArrowRight') go(i + 1); if (e.key === 'ArrowLeft') go(i - 1);
     };
@@ -706,7 +787,7 @@ function App() {
   });
 
   if (!cfg) return <div className="boot" role="status">{toast || 'Loading…'}</div>;
-  const mp = { media, admin, pin, reload };
+  const mp = { media, admin, pin, reload, unlock, viewMedia: setViewingMedia };
   const phase = PHASES.find((p) => p.id === s.phase);
   const acknowledged = !!(lead.acknowledgments || {})[s.key];
   const body = {
@@ -770,6 +851,22 @@ function App() {
         </div>
       </main>
 
+      {viewingMedia && (
+        <div className="media-viewer-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setViewingMedia(null);
+        }} onKeyDown={(event) => {
+          if (event.key === 'Escape') setViewingMedia(null);
+        }}>
+          <section className="media-viewer" role="dialog" aria-modal="true" aria-label={`Viewing ${viewingMedia.label}`}>
+            <button type="button" className="media-viewer-close" onClick={() => setViewingMedia(null)} autoFocus
+              aria-label="Close media viewer"><i className="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            {viewingMedia.type === 'video'
+              ? <video src={viewingMedia.url} controls playsInline autoPlay />
+              : <img src={viewingMedia.url} alt={viewingMedia.label} />}
+          </section>
+        </div>
+      )}
+
       {toast && <div className="toast" role="alert">{toast}</div>}
 
       {s.type !== 'register' && s.type !== 'summary' && (
@@ -782,6 +879,32 @@ function App() {
               <span>{STEPS[i + 1].type === 'summary' ? 'Confirm booking' : 'Continue'}</span><i className="fa-solid fa-arrow-right"></i></button>
           </div>
         </footer>
+      )}
+
+      {pinDialogOpen && (
+        <div className="pin-dialog-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closePinDialog();
+        }} onKeyDown={(event) => {
+          if (event.key === 'Escape') closePinDialog();
+        }}>
+          <section className="pin-dialog" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
+            <h2 id="pin-dialog-title">Counsellor sign-in</h2>
+            <p>Enter your PIN to upload or replace slide photos and videos.</p>
+            <form className="pin-form" onSubmit={submitPin}>
+              <label htmlFor="counsellor-pin">Counsellor PIN</label>
+              <input id="counsellor-pin" type="password" autoComplete="current-password" autoFocus
+                value={pinInput} onChange={(event) => { setPinInput(event.target.value); setPinError(''); }}
+                aria-invalid={!!pinError} aria-describedby={pinError ? 'pin-dialog-error' : undefined} />
+              {pinError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{pinError}</p>}
+              <div className="pin-dialog-actions">
+                <button type="button" className="btn-prev" onClick={closePinDialog}>Cancel</button>
+                <button type="submit" className="btn-next" disabled={pinBusy || !pinInput.trim()}>
+                  {pinBusy ? 'Checking…' : 'Sign in'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
     </div>
   );

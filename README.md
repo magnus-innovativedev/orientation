@@ -16,9 +16,13 @@ Each informational slide requires a slide-specific acknowledgment before moving 
 Continue is blocked until: registered, course chosen, payment chosen, terms accepted, booking amount chosen.
 
 ## Adding photos and videos
-Tap the lock icon (top right) and enter ADMIN_PIN. Every "coming soon" slot then shows an Upload
-button labelled with its slot key (e.g. classrooms-1, jobs-0). Files land in static/media/<slot>.<ext>;
-you can also copy files there by hand. Images: jpg/png/webp. Video: mp4/webm.
+Tap the lock icon (top right) or a media slot's "Sign in to upload" button and enter ADMIN_PIN.
+Every "coming soon" slot then shows an Upload button labelled with its slot key (e.g. classrooms-1,
+jobs-0). Photo slots accept jpg/jpeg/png/webp/gif; video slots accept mp4/webm/mov. Files land in
+static/media/<slot>.<ext>; you can also copy files there by hand. In Counsellor mode, use the × button
+on a filled slot to remove its uploaded media. Tap a photo, video, or brand logo to open it in a
+same-window popup. Videos play with controls in the popup. Close it with ×, Escape
+or by clicking outside the viewer.
 
 ## Changing numbers
 Fees, EMI, stipend, service-centre totals and area counts, cheque, loan terms, documents and the next batch date live in CONFIG in main.py
