@@ -492,25 +492,57 @@ function CoursesSlide({ cfg, mp }) {
 
 function CompareSlide({ cfg }) {
   const a = cfg.courses.smartphone, b = cfg.courses.laptop;
-  const emi = (c) => `${inr(c.emi_first)} first, then ${inr(c.emi_each)} × ${c.emi_count}`;
   const rows = [
-    ['Duration', `${a.months} months (${a.training} + ${a.ojt})`, `${b.months} months (${b.training} + ${b.ojt})`],
-    ['Fees', inr(a.student_fee), inr(b.student_fee)],
-    ['EMI', emi(a), emi(b)],
-    ['Technology', 'One technology', 'Two technologies'],
-    ['OJT will get', 'Only mobile service / sales centre', 'Only mobile service / sales centre'],
-    ['If going to an interview', 'Low possibility', 'High possibility – knows mobile and laptop service'],
-    ['Abroad recruitment', 'Low possibility', 'High possibility – knows mobile and laptop service'],
-    ['Laptop study again', 'Minimum fee ₹80K and 4 months', 'He already knows'],
+    { icon: 'fa-calendar-clock', label: 'Duration',
+      mobile: <><strong>{a.months} months</strong><small>{a.training} + {a.ojt}</small></>,
+      laptop: <><strong>{b.months} months</strong><small>{b.training} + {b.ojt}</small></> },
+    { icon: 'fa-indian-rupee-sign', label: 'Fees',
+      mobile: <strong>{inr(a.student_fee)}</strong>, laptop: <strong>{inr(b.student_fee)}</strong> },
+    { icon: 'fa-credit-card', label: 'EMI',
+      mobile: <><strong>{inr(a.emi_first)} first</strong><small>then {inr(a.emi_each)} × {a.emi_count}</small></>,
+      laptop: <><strong>{inr(b.emi_first)} first</strong><small>then {inr(b.emi_each)} × {b.emi_count}</small></> },
+    { icon: 'fa-microchip', label: 'Technology',
+      mobile: <><strong>One technology</strong></>,
+      laptop: <><strong>Two technologies</strong><small>Mobile + Laptop</small></> },
+    { icon: 'fa-briefcase', label: 'OJT will get',
+      mobile: <span>Only mobile service / sales centre</span>,
+      laptop: <span>Only mobile service / sales centre</span> },
+    { icon: 'fa-user-check', label: 'If going to an interview',
+      mobile: <span className="compare-badge low"><i className="fa-solid fa-arrow-down" aria-hidden="true"></i>Low possibility</span>,
+      laptop: <><span className="compare-badge high"><i className="fa-solid fa-arrow-up" aria-hidden="true"></i>High possibility</span><small>Knows mobile and laptop service</small></> },
+    { icon: 'fa-plane', label: 'Abroad recruitment',
+      mobile: <span className="compare-badge low"><i className="fa-solid fa-arrow-down" aria-hidden="true"></i>Low possibility</span>,
+      laptop: <><span className="compare-badge high"><i className="fa-solid fa-arrow-up" aria-hidden="true"></i>High possibility</span><small>Knows mobile and laptop service</small></> },
+    { icon: 'fa-laptop', label: 'Laptop study again',
+      mobile: <span className="compare-badge low"><i className="fa-solid fa-indian-rupee-sign" aria-hidden="true"></i>Min. fee ₹80K + 4 months</span>,
+      laptop: <span className="compare-badge high"><i className="fa-solid fa-check" aria-hidden="true"></i>Already knows</span> },
   ];
   const diff = b.student_fee - a.student_fee, months = b.months - a.months;
   return (
     <>
-      <div className="fcard scroll">
-        <table className="ftable">
-          <thead><tr><th>Course</th><th>Mobile</th><th>Mobile + Laptop</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r[0]}><th scope="row">{r[0]}</th><td>{r[1]}</td><td>{r[2]}</td></tr>)}</tbody>
-        </table>
+      <div className="compare-table" role="table" aria-label="Mobile and Mobile plus Laptop course comparison">
+        <div className="compare-row compare-header" role="row">
+          <div className="compare-feature" role="columnheader"><span className="compare-title">Feature</span></div>
+          <div role="columnheader">
+            <span className="compare-title"><span className="compare-course-icon"><i className="fa-solid fa-mobile-screen-button" aria-hidden="true"></i></span>Mobile</span>
+          </div>
+          <div className="compare-laptop-column" role="columnheader">
+            <span className="compare-title">
+              <span className="compare-course-icon"><i className="fa-solid fa-mobile-screen-button" aria-hidden="true"></i><i className="fa-solid fa-laptop" aria-hidden="true"></i></span>
+              <span>Mobile + Laptop</span>
+            </span>
+            <span className="compare-recommended">Recommended</span>
+          </div>
+        </div>
+        {rows.map((row) => (
+          <div className="compare-row" role="row" key={row.label}>
+            <div className="compare-feature" role="rowheader">
+              <i className={`fa-solid ${row.icon}`} aria-hidden="true"></i><strong>{row.label}</strong>
+            </div>
+            <div role="cell">{row.mobile}</div>
+            <div className="compare-laptop-column" role="cell">{row.laptop}</div>
+          </div>
+        ))}
       </div>
       <div className="fbanner" style={{ marginTop: 16 }}>
         <div><strong>Only {inr(diff)} and {months} months more</strong>
