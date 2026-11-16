@@ -15,6 +15,56 @@ const send = (method, body, pin) => ({
 });
 const card = (t, d, m, x = {}) => ({ t, d, m, ...x });
 
+let clickAudioContext;
+function playClickSound() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  if (!clickAudioContext) clickAudioContext = new AudioContextClass();
+  const context = clickAudioContext;
+  const play = () => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(900, now);
+    oscillator.frequency.exponentialRampToValueAtTime(560, now + 0.05);
+    gain.gain.setValueAtTime(0.018, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.05);
+  };
+  if (context.state === 'suspended') {
+    context.resume().then(play).catch((error) => console.error('Could not play click sound.', error));
+  } else play();
+}
+
+function playCompletionSound() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  if (!clickAudioContext) clickAudioContext = new AudioContextClass();
+  const context = clickAudioContext;
+  const play = () => {
+    [523.25, 659.25, 783.99].forEach((frequency, index) => {
+      const start = context.currentTime + 0.08 + index * 0.12;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.02, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.24);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.24);
+    });
+  };
+  if (context.state === 'suspended') {
+    context.resume().then(play).catch((error) => console.error('Could not play completion sound.', error));
+  } else play();
+}
+
 /* ---------- the PPT, as data ----------
    m = 'photo' | 'video' -> a media slot (counsellor uploads once, shown to every visitor)
    Slot key = `${slide.key}-${cardIndex}`  e.g. classrooms-1, jobs-0                       */
@@ -704,6 +754,16 @@ function App() {
       .catch(() => localStorage.removeItem('leadId'));
   }, []);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t); } }, [toast]);
+  useEffect(() => {
+    const handleClick = (event) => {
+      if (event.isTrusted && event.target instanceof Element
+        && event.target.closest('button:not(:disabled), a[href], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), select:not(:disabled)')) {
+        playClickSound();
+      }
+    };
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, []);
 
   const patch = (p) => setLead((l) => ({ ...l, ...p }));
   const save = (progress, extra = {}) => {
@@ -728,7 +788,8 @@ function App() {
       const acknowledgments = ref.current.acknowledgments || {};
       for (let step = i; step < n; step += 1) {
         const current = STEPS[step];
-        if (current.type !== 'register' && current.type !== 'summary' && !acknowledgments[current.key]) {
+        if (current.type !== 'register' && current.type !== 'summary' && current.key !== 'terms'
+          && !acknowledgments[current.key]) {
           setToast(`Please acknowledge "${current.title}" before continuing.`);
           return;
         }
@@ -739,6 +800,7 @@ function App() {
     const done = STEPS[n].type === 'summary';
     setDir(n >= i ? 'fwd' : 'back'); setI(n); window.scrollTo({ top: 0, behavior: 'smooth' });
     save(n, done ? { status: 'booked' } : {});
+    if (done) playCompletionSound();
     if (done && window.confetti) window.confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
   };
   const newVisitor = () => { localStorage.removeItem('leadId'); setLead({}); setI(0); };
@@ -789,7 +851,7 @@ function App() {
   if (!cfg) return <div className="boot" role="status">{toast || 'Loading…'}</div>;
   const mp = { media, admin, pin, reload, unlock, viewMedia: setViewingMedia };
   const phase = PHASES.find((p) => p.id === s.phase);
-  const acknowledged = !!(lead.acknowledgments || {})[s.key];
+  const acknowledged = s.key === 'terms' || !!(lead.acknowledgments || {})[s.key];
   const body = {
     register: <RegisterSlide lead={lead} setLead={setLead} onNew={newVisitor} onStart={() => go(1)} />,
     location: <LocationSlide cfg={cfg} />,
@@ -841,7 +903,7 @@ function App() {
           <section className={`orientation-section anim-${dir} ${s.type === 'hero' ? 'is-hero' : ''}`} key={s.key} data-step={i}>
             {s.type !== 'hero' && <div className="slide-head"><h1>{s.title}</h1>{lead.name && s.type !== 'register' && <span className="who">{lead.name}</span>}</div>}
             {body}
-            {s.type !== 'register' && s.type !== 'summary' && (
+            {s.type !== 'register' && s.type !== 'summary' && s.key !== 'terms' && (
               <label className="accept slide-acknowledgment">
                 <input type="checkbox" checked={acknowledged} onChange={(e) => acknowledge(e.target.checked)} />
                 <span>I have understood: {s.title}.</span>

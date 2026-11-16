@@ -12,8 +12,10 @@ Flask + SQLite backend, React front end (no build step). Mirrors the PPT as one 
 -> 5 Fees & terms (compare, choose course, payment, terms + cheques, skill loan, documents)
 -> 6 Booking (photo, amount, batch) -> printable summary.
 Progress saves after every step; a visitor returning on the same device resumes where they stopped.
-Each informational slide requires a slide-specific acknowledgment before moving forward; acknowledgments are saved with visitor progress.
+Informational slides require a slide-specific acknowledgment before moving forward; Other Terms uses its terms-consent checkbox instead. Acknowledgments are saved with visitor progress.
 Continue is blocked until: registered, course chosen, payment chosen, terms accepted, booking amount chosen.
+Interactive buttons and controls play a subtle click sound when browser audio is enabled.
+Completing the final step plays a short success chime.
 
 ## Adding photos and videos
 Tap the lock icon (top right) or a media slot's "Sign in to upload" button and enter ADMIN_PIN.
