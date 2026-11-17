@@ -498,7 +498,7 @@ html[data-theme="light"] button:focus-visible { outline-color: rgba(50,109,142,.
 
 ::view-transition-old(root) { animation: none; }
 ::view-transition-new(root) {
-  animation: theme-reveal 1.2s cubic-bezier(.22,.8,.3,1) both;
+  animation: theme-reveal 1.6s cubic-bezier(.22,.8,.3,1) both;
 }
 @keyframes theme-reveal {
   from { clip-path: circle(0 at var(--theme-origin-x, 50vw) var(--theme-origin-y, 50vh)); }
