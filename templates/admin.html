@@ -27,7 +27,7 @@
 </style></head><body>
 <header><h1>Counselling leads</h1><button id="csv">Download CSV</button><button id="out">Lock</button></header>
 <div class="wrap"><div id="msg"></div><table id="t" hidden><thead><tr>
- <th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Docs</th><th>Status</th><th>Updated</th><th>Photo</th>
+ <th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Docs</th><th>Status</th><th>Updated</th><th>Photo</th><th>Recording</th>
 </tr></thead><tbody></tbody></table></div>
 <script>
 const H=()=>({'X-Admin-Pin':sessionStorage.getItem('pin')||''});
@@ -43,10 +43,22 @@ async function load(){
    <td>${esc(l.batch||'')}</td><td>${Object.values(l.docs||{}).filter(Boolean).length}/6</td>
    <td><span class="pill ${l.status==='booked'?'booked':''}">${esc(l.status||'')}</span></td>
    <td>${esc((l.updated||'').replace('T',' '))}</td>
-   <td><a href="#" data-id="${esc(l.id)}" class="ph" style="color:#7dd3fc">View</a></td></tr>`).join('');
+   <td><a href="#" data-id="${esc(l.id)}" class="ph" style="color:#7dd3fc">View</a></td>
+   <td>${l.recording_status==='complete'?`<a href="#" data-id="${esc(l.id)}" class="rec">Download</a>`:'—'}</td></tr>`).join('');
 }
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 document.addEventListener('click',async e=>{
+  const rec=e.target.closest('.rec');
+  if(rec){
+    e.preventDefault();
+    const r=await fetch('/api/admin/lead_recording/'+encodeURIComponent(rec.dataset.id),{headers:H()});
+    if(!r.ok)return alert('Recording is not available.');
+    const blob=await r.blob(),a=document.createElement('a'),disposition=r.headers.get('Content-Disposition')||'';
+    const filename=disposition.match(/filename="([^"]+)"/i);
+    a.href=URL.createObjectURL(blob);a.download=filename?filename[1]:'visitor-recording.wav';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    return;
+  }
   if(!e.target.classList.contains('ph'))return;e.preventDefault();
   const r=await fetch('/api/admin/lead_photo/'+e.target.dataset.id,{headers:H()});
   if(!r.ok)return alert('No photo uploaded yet');window.open(URL.createObjectURL(await r.blob()));

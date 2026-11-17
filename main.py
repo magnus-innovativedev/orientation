@@ -3,8 +3,8 @@
 Run:  pip install -r requirements.txt && python main.py
 Env:  ADMIN_PIN=<your pin>   (default 1234 - change it!)
 """
-import csv, io, json, os, secrets, sqlite3
-from datetime import datetime
+import csv, hashlib, io, json, os, secrets, shutil, sqlite3, threading, wave
+from datetime import datetime, timedelta
 from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
@@ -12,7 +12,8 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(BASE, "data")
 MEDIA = os.path.join(BASE, "static", "media")
 PHOTOS = os.path.join(DATA, "lead_photos")
-for d in (DATA, MEDIA, PHOTOS):
+RECORDINGS = os.path.join(DATA, "recordings")
+for d in (DATA, MEDIA, PHOTOS, RECORDINGS):
     os.makedirs(d, exist_ok=True)
 DB = os.path.join(DATA, "magnus.db")
 ADMIN_PIN = os.environ.get("ADMIN_PIN", "1234")
@@ -157,6 +158,7 @@ CONFIG = {
     "booking": {"first_payment_total": 36980,
                 "options": [36980, 20980, 10980, 5980, 2980, 1980, 980]},
     "next_batch": {"date": "2026-12-01", "time": "09:30 AM"},  # EDIT ME
+    "audio_retention_days": 90,
     "documents": [
         {"key": "aadhaar", "label": "Aadhaar card", "note": "Student & father"},
         {"key": "pan", "label": "PAN card", "note": "Student & father"},
@@ -170,6 +172,10 @@ _cfg_file = os.path.join(BASE, "config.json")
 if os.path.exists(_cfg_file):
     with open(_cfg_file, encoding="utf-8") as f:
         CONFIG.update(json.load(f))
+AUDIO_RETENTION_DAYS = int(os.environ.get("AUDIO_RETENTION_DAYS", CONFIG["audio_retention_days"]))
+if AUDIO_RETENTION_DAYS < 1:
+    raise ValueError("AUDIO_RETENTION_DAYS must be at least 1")
+CONFIG["audio_retention_days"] = AUDIO_RETENTION_DAYS
 
 
 # ---- DB ----
@@ -184,6 +190,15 @@ def init_db():
         con.execute("""CREATE TABLE IF NOT EXISTS leads (
             id TEXT PRIMARY KEY, created TEXT, updated TEXT,
             name TEXT, phone TEXT, data TEXT DEFAULT '{}')""")
+        con.execute("""CREATE TABLE IF NOT EXISTS audio_recordings (
+            id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, created TEXT NOT NULL,
+            updated TEXT NOT NULL, completed TEXT, lead_id TEXT, status TEXT NOT NULL,
+            sample_rate INTEGER NOT NULL, consented TEXT NOT NULL)""")
+        con.execute("""CREATE TABLE IF NOT EXISTS audio_chunks (
+            recording_id TEXT NOT NULL, chunk_index INTEGER NOT NULL,
+            byte_length INTEGER NOT NULL, created TEXT NOT NULL,
+            PRIMARY KEY (recording_id, chunk_index))""")
+        con.execute("CREATE INDEX IF NOT EXISTS audio_recordings_lead_id ON audio_recordings(lead_id)")
 
 
 init_db()
@@ -193,6 +208,57 @@ PATCHABLE = {"parent_name", "place", "qualification", "course", "payment", "cash
 
 def now():
     return datetime.now().isoformat(timespec="seconds")
+
+
+_recording_cleanup_lock = threading.Lock()
+_last_recording_cleanup = None
+
+
+def purge_expired_recordings():
+    global _last_recording_cleanup
+    today = datetime.now().date()
+    if _last_recording_cleanup == today:
+        return
+    with _recording_cleanup_lock:
+        if _last_recording_cleanup == today:
+            return
+        cutoff = (datetime.now() - timedelta(days=AUDIO_RETENTION_DAYS)).isoformat(timespec="seconds")
+        with db() as con:
+            expired = con.execute(
+                "SELECT id FROM audio_recordings WHERE COALESCE(completed, updated) < ?", (cutoff,)
+            ).fetchall()
+            cleanup_deferred = False
+            for row in expired:
+                recording_dir = os.path.join(RECORDINGS, row["id"])
+                if os.path.isdir(recording_dir):
+                    shutil.rmtree(recording_dir)
+                wav_path = os.path.join(RECORDINGS, f"{row['id']}.wav")
+                if os.path.isfile(wav_path):
+                    try:
+                        os.remove(wav_path)
+                    except PermissionError:
+                        app.logger.warning("Expired audio recording %s is in use; retention cleanup will retry.", row["id"])
+                        cleanup_deferred = True
+                        continue
+                con.execute("DELETE FROM audio_chunks WHERE recording_id=?", (row["id"],))
+                con.execute("DELETE FROM audio_recordings WHERE id=?", (row["id"],))
+        _last_recording_cleanup = today - timedelta(days=1) if cleanup_deferred else today
+
+
+@app.before_request
+def cleanup_recording_retention():
+    purge_expired_recordings()
+
+
+def recording_for_token(recording_id, token):
+    with db() as con:
+        row = con.execute("SELECT * FROM audio_recordings WHERE id=?", (recording_id,)).fetchone()
+    if not row:
+        abort(404, "Recording session not found")
+    supplied_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    if not secrets.compare_digest(row["token_hash"], supplied_hash):
+        abort(401, "Recording session token required")
+    return row
 
 
 def lead_out(row):
@@ -247,6 +313,141 @@ def get_media():
     return jsonify(media_map())
 
 
+@app.post("/api/recordings")
+def create_recording():
+    body = request.get_json(silent=True) or {}
+    if body.get("consent") is not True:
+        abort(400, "Visitor consent is required before recording")
+    recording_id, token = secrets.token_urlsafe(18), secrets.token_urlsafe(32)
+    created = now()
+    with db() as con:
+        con.execute(
+            """INSERT INTO audio_recordings
+               (id, token_hash, created, updated, status, sample_rate, consented)
+               VALUES (?, ?, ?, ?, 'active', 16000, ?)""",
+            (recording_id, hashlib.sha256(token.encode("utf-8")).hexdigest(), created, created, created),
+        )
+    return jsonify(id=recording_id, token=token, sample_rate=16000, next_index=0, status="active"), 201
+
+
+@app.get("/api/recordings/<recording_id>/status")
+def recording_status(recording_id):
+    row = recording_for_token(recording_id, request.headers.get("X-Recording-Token"))
+    with db() as con:
+        next_index = con.execute(
+            "SELECT COALESCE(MAX(chunk_index) + 1, 0) FROM audio_chunks WHERE recording_id=?",
+            (recording_id,),
+        ).fetchone()[0]
+    return jsonify(status=row["status"], sample_rate=row["sample_rate"], next_index=next_index,
+                   lead_linked=bool(row["lead_id"]))
+
+
+@app.put("/api/recordings/<recording_id>/chunks/<int:chunk_index>")
+def upload_recording_chunk(recording_id, chunk_index):
+    row = recording_for_token(recording_id, request.headers.get("X-Recording-Token"))
+    if row["status"] != "active":
+        abort(409, "Recording session is no longer active")
+    if chunk_index < 0 or chunk_index > 1_000_000:
+        abort(400, "Invalid audio chunk index")
+    try:
+        sample_rate = int(request.headers.get("X-Audio-Sample-Rate", "0"))
+    except ValueError:
+        abort(400, "Invalid audio sample rate")
+    if sample_rate != row["sample_rate"]:
+        abort(400, "Audio sample rate does not match the recording session")
+    audio = request.get_data(cache=False)
+    if not audio or len(audio) > 1024 * 1024 or len(audio) % 2:
+        abort(400, "Audio chunk must contain up to 1 MiB of 16-bit PCM data")
+    with db() as con:
+        existing = con.execute(
+            "SELECT 1 FROM audio_chunks WHERE recording_id=? AND chunk_index=?",
+            (recording_id, chunk_index),
+        ).fetchone()
+        if existing:
+            return jsonify(ok=True, duplicate=True)
+    recording_dir = os.path.join(RECORDINGS, recording_id)
+    os.makedirs(recording_dir, exist_ok=True)
+    chunk_path = os.path.join(recording_dir, f"{chunk_index:08d}.pcm")
+    temporary_path = chunk_path + ".tmp"
+    with open(temporary_path, "wb") as audio_file:
+        audio_file.write(audio)
+    os.replace(temporary_path, chunk_path)
+    with db() as con:
+        con.execute(
+            "INSERT INTO audio_chunks VALUES (?, ?, ?, ?)",
+            (recording_id, chunk_index, len(audio), now()),
+        )
+        con.execute("UPDATE audio_recordings SET updated=? WHERE id=?", (now(), recording_id))
+    return jsonify(ok=True, next_index=chunk_index + 1)
+
+
+@app.post("/api/recordings/<recording_id>/link")
+def link_recording(recording_id):
+    row = recording_for_token(recording_id, request.headers.get("X-Recording-Token"))
+    body = request.get_json(silent=True) or {}
+    lead_id = body.get("lead_id")
+    if not lead_id:
+        abort(400, "Visitor record is required")
+    with db() as con:
+        if not con.execute("SELECT 1 FROM leads WHERE id=?", (lead_id,)).fetchone():
+            abort(404, "Visitor not found")
+        if row["status"] != "active":
+            abort(409, "Recording session is no longer active")
+        if row["lead_id"] and row["lead_id"] != lead_id:
+            abort(409, "Recording is already linked to a different visitor")
+        con.execute("UPDATE audio_recordings SET lead_id=?, updated=? WHERE id=?",
+                    (lead_id, now(), recording_id))
+    return jsonify(ok=True)
+
+
+@app.post("/api/recordings/<recording_id>/complete")
+def complete_recording(recording_id):
+    row = recording_for_token(recording_id, request.headers.get("X-Recording-Token"))
+    if row["status"] == "complete":
+        return jsonify(ok=True, status="complete")
+    if row["status"] != "active" or not row["lead_id"]:
+        abort(409, "Recording must be linked to a visitor before completion")
+    body = request.get_json(silent=True) or {}
+    try:
+        expected_chunks = int(body.get("expected_chunks", -1))
+    except (TypeError, ValueError):
+        abort(400, "Invalid expected audio chunk count")
+    if expected_chunks < 1 or expected_chunks > 1_000_000:
+        abort(400, "Invalid expected audio chunk count")
+    with db() as con:
+        chunks = con.execute(
+            "SELECT chunk_index FROM audio_chunks WHERE recording_id=? ORDER BY chunk_index",
+            (recording_id,),
+        ).fetchall()
+    indexes = [chunk["chunk_index"] for chunk in chunks]
+    if indexes != list(range(expected_chunks)):
+        abort(409, "Recording chunks are still uploading")
+    total_bytes = sum(
+        os.path.getsize(os.path.join(RECORDINGS, recording_id, f"{index:08d}.pcm"))
+        for index in indexes
+    )
+    if total_bytes > 0xFFFFFFFF - 44:
+        abort(413, "Recording exceeds the WAV file size limit")
+    wav_path = os.path.join(RECORDINGS, f"{recording_id}.wav")
+    temporary_path = wav_path + ".tmp"
+    with wave.open(temporary_path, "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(row["sample_rate"])
+        for index in indexes:
+            chunk_path = os.path.join(RECORDINGS, recording_id, f"{index:08d}.pcm")
+            with open(chunk_path, "rb") as audio_file:
+                output.writeframesraw(audio_file.read())
+    os.replace(temporary_path, wav_path)
+    completed = now()
+    with db() as con:
+        con.execute("UPDATE audio_recordings SET status='complete', completed=?, updated=? WHERE id=?",
+                    (completed, completed, recording_id))
+        con.execute("DELETE FROM audio_chunks WHERE recording_id=?", (recording_id,))
+    shutil.rmtree(os.path.join(RECORDINGS, recording_id), ignore_errors=False)
+    return jsonify(ok=True, status="complete")
+
+
 @app.post("/api/leads")
 def create_lead():
     b = request.get_json(silent=True) or {}
@@ -255,11 +456,26 @@ def create_lead():
         abort(400, "Enter the visitor's name")
     if len(phone) != 10 or phone[0] not in "6789":
         abort(400, "Enter a valid 10-digit mobile number")
+    recording_id, recording_token = b.get("recording_id"), b.get("recording_token")
+    recording = recording_for_token(recording_id, recording_token) if recording_id else None
+    if not recording or recording["status"] != "active" or recording["lead_id"]:
+        abort(400, "Start an active recording session before entering visitor details")
     lid = secrets.token_urlsafe(8)  # unguessable id, so visitors can't read each other's data
     extra = {k: (b.get(k) or "").strip() for k in ("parent_name", "place", "qualification")}
     extra.update(status="in_progress", progress=0, docs={})
     with db() as con:
+        current_recording = con.execute(
+            "SELECT * FROM audio_recordings WHERE id=?", (recording_id,)
+        ).fetchone()
+        if (not current_recording or current_recording["status"] != "active" or current_recording["lead_id"]
+                or not secrets.compare_digest(
+                    current_recording["token_hash"],
+                    hashlib.sha256((recording_token or "").encode("utf-8")).hexdigest(),
+                )):
+            abort(409, "Recording session is no longer available")
         con.execute("INSERT INTO leads VALUES (?,?,?,?,?,?)", (lid, now(), now(), name, phone, json.dumps(extra)))
+        con.execute("UPDATE audio_recordings SET lead_id=?, updated=? WHERE id=?",
+                    (lid, now(), recording_id))
         row = con.execute("SELECT * FROM leads WHERE id=?", (lid,)).fetchone()
     return jsonify(lead_out(row)), 201
 
@@ -349,7 +565,12 @@ def admin_leads():
     need_admin()
     with db() as con:
         rows = con.execute("SELECT * FROM leads ORDER BY updated DESC").fetchall()
-    return jsonify([lead_out(r) for r in rows])
+        recordings = con.execute("SELECT lead_id, status FROM audio_recordings WHERE lead_id IS NOT NULL").fetchall()
+    recording_status = {row["lead_id"]: row["status"] for row in recordings}
+    leads = [lead_out(row) for row in rows]
+    for lead in leads:
+        lead["recording_status"] = recording_status.get(lead["id"])
+    return jsonify(leads)
 
 
 @app.get("/api/admin/leads.csv")
@@ -375,6 +596,23 @@ def admin_photo(lid):
         if fn.startswith(secure_filename(lid) + "."):
             return send_from_directory(PHOTOS, fn)
     abort(404, "No photo")
+
+
+@app.get("/api/admin/lead_recording/<lid>")
+def admin_recording(lid):
+    need_admin()
+    with db() as con:
+        row = con.execute(
+            """SELECT audio_recordings.id, audio_recordings.created, leads.name, leads.phone
+               FROM audio_recordings JOIN leads ON leads.id=audio_recordings.lead_id
+               WHERE leads.id=? AND audio_recordings.status='complete'""",
+            (lid,),
+        ).fetchone()
+    if not row:
+        abort(404, "No completed recording")
+    filename = secure_filename(f"{row['name']}_{row['phone']}_{row['created'].replace(':', '-')}.wav")
+    return send_from_directory(RECORDINGS, f"{row['id']}.wav", as_attachment=True,
+                               download_name=filename, mimetype="audio/wav")
 
 
 if __name__ == "__main__":

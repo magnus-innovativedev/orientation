@@ -21,6 +21,17 @@ opens the file picker. The camera requests 4:3 and
 4000 x 3000 capture, saves a high-quality JPEG with automatic orientation, and requests auto flash
 when the device supports it. The actual resolution depends on the camera; photo upload remains available.
 
+## Audio recordings
+Before visitor details are shown, the visitor must consent and allow microphone access. Recording continues
+across the counselling steps and stops when the booking is submitted. Audio is queued in 10-second chunks
+in the browser and uploaded to private server storage; queued chunks retry when connectivity returns.
+An unfinished recording can be resumed from the same browser and continues under the same visitor session.
+Completed recordings are downloadable from the counsellor-only admin leads page. Files are stored outside
+`static/` and are removed after 90 days by default. Set `audio_retention_days` in `config.json` or override
+it with the `AUDIO_RETENTION_DAYS` environment variable. Microphone access requires HTTPS or localhost;
+browser or operating-system policies may interrupt capture when a device is locked, in which case the flow
+shows a microphone error and requires recording to resume before it can continue.
+
 ## Adding photos and videos
 Tap the lock icon (top right) or a media slot's "Sign in to upload" button and enter ADMIN_PIN.
 Every "coming soon" slot then shows an Upload button labelled with its slot key (e.g. classrooms-1,
