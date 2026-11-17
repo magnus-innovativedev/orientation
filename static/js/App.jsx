@@ -184,14 +184,12 @@ function HeroSlide({ s, mp, phase, n }) {
         {s.desc && <p>{s.desc}</p>}
         {s.brands && <div className="chips hero-brand-logos" aria-label="Brands">
           {s.brands.map((brand) => (
-            <button type="button" className="chip hero-brand-logo" key={brand.name}
-              onClick={() => mp.viewMedia({ url: brand.logo, type: 'photo', label: brand.name })}
-              aria-label={`Open ${brand.name} logo`}>
+            <span className="chip hero-brand-logo" key={brand.name}>
               <img src={brand.logo} alt={brand.name} loading="lazy" onError={(event) => {
                 console.error(`Brand logo failed to load for ${brand.name}.`);
                 event.currentTarget.hidden = true;
               }} />
-            </button>
+            </span>
           ))}
         </div>}
         {s.chips && !s.brands && <div className="chips">{s.chips.map((c) => (
@@ -936,6 +934,7 @@ function SummarySlide({ cfg, lead, onNew }) {
 /* ---------- app shell ---------- */
 function App() {
   const [cfg, setCfg] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') === 'light' ? 'light' : 'dark');
   const [media, setMedia] = useState({});
   const [lead, setLead] = useState({});
   const [i, setI] = useState(0);
@@ -950,6 +949,25 @@ function App() {
   const ref = useRef(lead); ref.current = lead;
   const s = STEPS[i];
   const admin = !!pin;
+
+  const toggleTheme = (event) => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const root = document.documentElement;
+    root.style.setProperty('--theme-origin-x', `${bounds.left + bounds.width / 2}px`);
+    root.style.setProperty('--theme-origin-y', `${bounds.top + bounds.height / 2}px`);
+    if (document.startViewTransition) {
+      document.startViewTransition(() => ReactDOM.flushSync(() => setTheme(nextTheme)));
+    } else {
+      setTheme(nextTheme);
+    }
+  };
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f4f8fc' : '#06111b');
+  }, [theme]);
 
   const reload = () => api('/api/media').then(setMedia).catch(() => {});
   useEffect(() => {
@@ -1078,7 +1096,7 @@ function App() {
       <header className="site-header no-print">
         <button className="brand-nav" onClick={() => go(0)} aria-label="Magnus home">
           <img src="/static/images/loginpageimage.png" alt="" className="brand-nav-logo" />
-          <span className="brand-title">MAGNUS</span><span className="brand-badge">ADMISSION COUNSELLING</span>
+          <span className="brand-badge">ADMISSION COUNSELLING</span>
         </button>
         <div className="nav-stats">
           <div className="progress-track-wrapper">
@@ -1089,6 +1107,11 @@ function App() {
           </div>
           <button className={`lock ${admin ? 'on' : ''}`} onClick={unlock} title={admin ? 'Counsellor mode on · tap to lock' : 'Counsellor sign-in'}
             aria-label={admin ? 'Lock counsellor mode' : 'Counsellor sign-in'}><i className={`fa-solid ${admin ? 'fa-lock-open' : 'fa-lock'}`}></i></button>
+          <button type="button" className="theme-toggle" onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+            <i className={`fa-solid ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}`} aria-hidden="true"></i>
+          </button>
         </div>
       </header>
 
