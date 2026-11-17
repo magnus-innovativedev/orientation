@@ -1,70 +1,394 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><title>Counselling leads | Magnus</title>
-<style>
- :root{--glass:rgba(255,255,255,.10);--lift:cubic-bezier(.22,.8,.3,1)}
- *{box-sizing:border-box}
- body{font:14px/1.5 'Plus Jakarta Sans',system-ui,sans-serif;margin:0;min-height:100vh;color:#fff;
-  background:radial-gradient(circle at 12% 18%,rgba(96,165,250,.42),transparent 45%),radial-gradient(circle at 88% 28%,rgba(147,197,253,.3),transparent 50%),radial-gradient(circle at 50% 90%,rgba(37,99,235,.4),transparent 60%),#071a3a;background-attachment:fixed}
- header{display:flex;gap:12px;align-items:center;padding:16px 24px;background:rgba(255,255,255,.07);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border-bottom:1px solid rgba(255,255,255,.14);animation:drop .6s var(--lift) both}
- h1{font-size:18px;margin:0;flex:1;font-weight:800}
- button{background:#fff;color:#1e3a8a;border:0;border-radius:99px;padding:9px 18px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(37,99,235,.4);transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
- button:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 14px 30px rgba(37,99,235,.55)} button:active{transform:scale(.96)}
- #out{background:var(--glass);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:none}
- .wrap{margin:20px 24px;padding:8px 12px;overflow-x:auto;border-radius:22px;background:var(--glass);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 8px 32px rgba(0,8,30,.3),inset 0 1px 0 rgba(255,255,255,.18);animation:rise .7s var(--lift) both}
- table{border-collapse:collapse;width:100%;min-width:900px}
- th,td{text-align:left;padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.1);white-space:nowrap}
- th{color:#bfdbfe;font-weight:700}
- tbody tr{transition:background .25s,transform .25s var(--lift);animation:rise .5s var(--lift) backwards}
- tbody tr:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
- .pill{padding:3px 11px;border-radius:99px;background:rgba(255,255,255,.14)}.booked{background:rgba(96,165,250,.5);color:#fff}
- a.ph{color:#bfdbfe!important}
- #msg{padding:24px;color:rgba(255,255,255,.68)}
- @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
- @keyframes drop{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:none}}
- @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style></head><body>
-<header><h1>Counselling leads</h1><button id="csv">Download CSV</button><button id="out">Lock</button></header>
-<div class="wrap"><div id="msg"></div><table id="t" hidden><thead><tr>
- <th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Docs</th><th>Status</th><th>Updated</th><th>Photo</th><th>Recording</th>
-</tr></thead><tbody></tbody></table></div>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Magnus management</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}"></head><body>
+<section id="login-panel" class="wrap" hidden>
+  <h1>Magnus sign-in</h1><p class="muted">Use your assigned email and password.</p>
+  <form id="login-form">
+    <label>Email<input id="login-email" type="email" autocomplete="username" required></label>
+    <label>Password<span class="password-field"><input id="login-password" type="password" autocomplete="current-password" required>
+      <button type="button" class="password-toggle" data-password-toggle="login-password" aria-label="Show password" title="Show password">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </button>
+    </span></label>
+    <p id="login-error" class="notice error" hidden></p>
+    <button type="submit">Sign in</button>
+  </form>
+</section>
+<main id="dashboard" hidden>
+  <header><h1>Magnus management</h1><span id="signed-in-user"></span><a href="/?flow=1" class="btn-link">Counselling flow</a><button id="logout" class="secondary">Sign out</button></header>
+  <nav class="nav" id="main-tabs"></nav>
+  <p id="notice" class="notice" hidden></p>
+  <section id="reports-panel" class="wrap plain" hidden><div id="reports-root"></div></section>
+  <section id="leads-panel" class="wrap" hidden>
+    <div class="toolbar"><h2 style="flex:1">Visitors</h2><button id="csv">Download CSV</button></div>
+    <div id="leads-empty" class="empty" hidden>No visitors found.</div>
+    <table id="leads-table" hidden><thead><tr id="leads-head"></tr></thead><tbody></tbody></table>
+  </section>
+  <section id="users-panel" class="wrap" hidden>
+    <div class="toolbar">
+      <label class="search">Search name or mobile<input id="user-search" type="search" placeholder="Search users"></label>
+      <label>Branch<select id="filter-branch"><option value="">All branches</option></select></label>
+      <label>Role<select id="filter-role"><option value="">All roles</option></select></label>
+      <label>Status<select id="filter-status"><option value="active">Active</option><option value="inactive">Inactive</option><option value="removed">Removed</option><option value="all">All</option></select></label>
+      <button id="add-user">Add user</button>
+    </div>
+    <div id="users-empty" class="empty" hidden>No users found.</div>
+    <table id="users-table" hidden><thead><tr><th>Name</th><th>Mobile</th><th>Role</th><th>Branch</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead><tbody></tbody></table>
+  </section>
+  <section id="audit-panel" class="wrap" hidden><h2>Audit log</h2><div id="audit-list" class="audit-list"></div></section>
+</main>
+<dialog id="user-dialog">
+  <div class="dialog-head"><h2 id="user-dialog-title">Add user</h2><button type="button" class="secondary" data-close="user-dialog">Close</button></div>
+  <form id="user-form" class="dialog-body">
+    <div class="form-grid">
+      <label>Name<input name="name" required minlength="2"></label>
+      <label>Mobile (optional)<input name="mobile" inputmode="numeric"></label>
+      <label>Email<input name="email" type="email" required></label>
+      <label>User type<select name="role" required></select></label>
+      <label class="branch-field">Branch<select name="branch_id"></select></label>
+      <label>Password<span class="password-field"><input id="user-password" name="temporary_password" type="password">
+        <button type="button" class="password-toggle" data-password-toggle="user-password" aria-label="Show password" title="Show password">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      </span></label>
+    </div>
+    <p id="user-form-error" class="notice error" hidden></p>
+    <div class="form-actions"><button type="button" class="secondary" data-close="user-dialog">Cancel</button><button type="submit">Save user</button></div>
+  </form>
+</dialog>
+<dialog id="roles-dialog">
+  <div class="dialog-head"><h2>Roles &amp; permissions</h2><button type="button" class="secondary" data-close="roles-dialog">Close</button></div>
+  <div class="dialog-body">
+    <div class="tabs"><button id="role-definition-tab" class="active">Role permissions</button><button id="user-overrides-tab" class="secondary">User overrides</button></div>
+    <section id="role-definition-view">
+      <div class="role-editor"><div id="role-list" class="role-list"></div><div id="role-permission-editor"></div></div>
+      <div id="role-save-bar" class="save-bar" hidden><div><strong>Unsaved role changes</strong><div id="role-diff" class="diff"></div></div><div class="actions"><button id="discard-role" class="secondary">Discard</button><button id="save-role">Save changes</button></div></div>
+    </section>
+    <section id="user-overrides-view" hidden>
+      <div class="toolbar"><label>User<select id="override-user"></select></label></div>
+      <div id="override-editor"></div>
+      <div id="override-save-bar" class="save-bar" hidden><div><strong>Unsaved user overrides</strong><div id="override-diff" class="diff"></div></div><div class="actions"><button id="discard-overrides" class="secondary">Discard</button><button id="save-overrides">Save changes</button></div></div>
+    </section>
+  </div>
+</dialog>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
 <script>
-const H=()=>({'X-Admin-Pin':sessionStorage.getItem('pin')||''});
-const money=n=>n?'₹'+Number(n).toLocaleString('en-IN'):'';
-async function load(){
-  if(!sessionStorage.getItem('pin')){const p=prompt('Admin PIN');if(!p)return;sessionStorage.setItem('pin',p);}
-  const r=await fetch('/api/admin/leads',{headers:H()});
-  if(!r.ok){sessionStorage.removeItem('pin');msg.textContent='Wrong PIN. Reload to try again.';return;}
-  const rows=await r.json();msg.textContent=rows.length?'':'No visitors yet.';t.hidden=!rows.length;
-  t.tBodies[0].innerHTML=rows.map(l=>`<tr>
-   <td>${esc(l.name)}</td><td>${esc(l.phone)}</td><td>${esc(l.place||'')}</td>
-   <td>${esc(l.course||'')}</td><td>${esc(l.payment||'')}</td><td>${money(l.booking_amount)}</td>
-   <td>${esc(l.batch||'')}</td><td>${Object.values(l.docs||{}).filter(Boolean).length}/6</td>
-   <td><span class="pill ${l.status==='booked'?'booked':''}">${esc(l.status||'')}</span></td>
-   <td>${esc((l.updated||'').replace('T',' '))}</td>
-   <td><a href="#" data-id="${esc(l.id)}" class="ph" style="color:#7dd3fc">View</a></td>
-   <td>${l.recording_status==='complete'?`<a href="#" data-id="${esc(l.id)}" class="rec">Download</a>`:'—'}</td></tr>`).join('');
-}
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-document.addEventListener('click',async e=>{
-  const rec=e.target.closest('.rec');
-  if(rec){
-    e.preventDefault();
-    const r=await fetch('/api/admin/lead_recording/'+encodeURIComponent(rec.dataset.id),{headers:H()});
-    if(!r.ok)return alert('Recording is not available.');
-    const blob=await r.blob(),a=document.createElement('a'),disposition=r.headers.get('Content-Disposition')||'';
-    const filename=disposition.match(/filename="([^"]+)"/i);
-    a.href=URL.createObjectURL(blob);a.download=filename?filename[1]:'visitor-recording.wav';a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-    return;
-  }
-  if(!e.target.classList.contains('ph'))return;e.preventDefault();
-  const r=await fetch('/api/admin/lead_photo/'+e.target.dataset.id,{headers:H()});
-  if(!r.ok)return alert('No photo uploaded yet');window.open(URL.createObjectURL(await r.blob()));
+const PERMISSION = Object.freeze({
+  visitorViewBranch:'visitor.view_branch', visitorViewAll:'visitor.view_all',
+  userViewAll:'user.view_all', userViewOwnBranch:'user.view_own_branch',
+  userEdit:'user.edit', userDeactivate:'user.deactivate', userRemove:'user.remove',
+  userAddReception:'user.add_reception', userRemoveReception:'user.remove_reception',
+  userAddScm:'user.add_scm', userRemoveScm:'user.remove_scm',
+  userAddHod:'user.add_hod', userRemoveHod:'user.remove_hod',
+  userAddOrientation:'user.add_orientation_manager', userRemoveOrientation:'user.remove_orientation_manager',
+  userAddBranchManager:'user.add_branch_manager', userRemoveBranchManager:'user.remove_branch_manager',
+  userAddAdmin:'user.add_admin', userAddDeveloper:'user.add_developer',
+  userManageDeveloper:'user.manage_developer',
+  recordingListen:'recording.listen', rolesView:'roles.view', rolesEdit:'roles.edit'
 });
-csv.onclick=async()=>{const r=await fetch('/api/admin/leads.csv',{headers:H()});if(!r.ok)return;
-  const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download='magnus_leads.csv';a.click();};
-out.onclick=()=>{sessionStorage.removeItem('pin');location.reload();};
-load();
+const EYE_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+const EYE_OFF_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.7 10.7 0 0112 5c6.4 0 10 7 10 7a14.6 14.6 0 01-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10.7 10.7 0 004.1-.8"></path></svg>';
+const STAFF_TYPES=['reception','scm','hod'];
+const state={user:null,branches:[],users:[],roles:[],groups:{},selectedRole:null,baseRolePermissions:[],overrideUser:null,baseOverrides:{},overrideGroups:[]};
+const $=(selector)=>document.querySelector(selector);
+const api=async(url,options={})=>{
+  const response=await fetch(url,{credentials:'same-origin',...options});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||response.statusText);
+  return result;
+};
+const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+const esc=(value)=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const has=(permission)=>state.user?.permissions?.includes(permission);
+const showNotice=(message,error=false)=>{const node=$('#notice');node.textContent=message;node.className=`notice${error?' error':''}`;node.hidden=!message;};
+const fmtDate=(value)=>value?new Date(value).toLocaleString():'—';
+const setVisible=(selector,visible)=>$(selector).hidden=!visible;
+function setPasswordVisibility(toggle,visible){
+  const input=document.getElementById(toggle.dataset.passwordToggle);
+  if(!input)return;
+  input.type=visible?'text':'password';
+  toggle.setAttribute('aria-label',visible?'Hide password':'Show password');
+  toggle.setAttribute('aria-pressed',String(visible));
+  toggle.title=visible?'Hide password':'Show password';
+  toggle.innerHTML=visible?EYE_OFF_ICON:EYE_ICON;
+}
+document.addEventListener('click',event=>{
+  const toggle=event.target.closest('[data-password-toggle]');
+  if(toggle)setPasswordVisibility(toggle,toggle.getAttribute('aria-pressed')!=='true');
+});
+function canManageDeveloper(target){return !target.locked||has(PERMISSION.userManageDeveloper);}
+function canRemove(user){
+  if(!canManageDeveloper(user))return false;
+  const permission={reception:PERMISSION.userRemoveReception,scm:PERMISSION.userRemoveScm,hod:PERMISSION.userRemoveHod,
+    orientation_manager:PERMISSION.userRemoveOrientation,branch_manager:PERMISSION.userRemoveBranchManager}[user.role];
+  return has(PERMISSION.userRemove)||!!permission&&has(permission);
+}
+function roleOptions(){
+  const options=[];
+  if(has(PERMISSION.userAddReception))options.push(['reception','Reception']);
+  if(has(PERMISSION.userAddScm))options.push(['scm','SCM']);
+  if(has(PERMISSION.userAddHod))options.push(['hod','HOD']);
+  if(has(PERMISSION.userAddOrientation))options.push(['orientation_manager','Orientation Manager']);
+  if(has(PERMISSION.userAddBranchManager))options.push(['branch_manager','Branch Manager']);
+  if(has(PERMISSION.userAddAdmin))options.push(['admin','Admin']);
+  if(has(PERMISSION.userAddDeveloper)&&has(PERMISSION.userManageDeveloper))options.push(['developer','Developer']);
+  return options;
+}
+let reportsReady=false;
+function startDashboard(){
+  if(!reportsReady){MagnusReports.init({api,esc,root:$('#reports-root'),onError:error=>showNotice(error.message,true)});reportsReady=true;}
+  setVisible('#login-panel',false);setVisible('#dashboard',true);
+  $('#signed-in-user').textContent=`${state.user.name} · ${state.user.role_name}${state.user.branch_name?` · ${state.user.branch_name}`:''}`;
+  const tabs=[];
+  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['reports','Reports','#reports-panel']);
+  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll))tabs.push(['leads','Visitors','#leads-panel']);
+  if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))tabs.push(['users','Users','#users-panel']);
+  if(has(PERMISSION.rolesView))tabs.push(['audit','Audit log','#audit-panel']);
+  $('#main-tabs').innerHTML=tabs.map(([key,label])=>`<button data-panel="${key}" class="${key===tabs[0][0]?'active':''}">${label}</button>`).join('')+
+    (has(PERMISSION.rolesView)?'<button id="open-roles" class="secondary">Roles &amp; permissions</button>':'');
+  $('#main-tabs').addEventListener('click',event=>{
+    const button=event.target.closest('[data-panel]');if(!button)return;
+    document.querySelectorAll('#main-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item===button));
+    for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,button.dataset.panel===panel);
+    if(button.dataset.panel==='reports')MagnusReports.load();
+    if(button.dataset.panel==='leads')loadLeads();
+    if(button.dataset.panel==='users')loadUsers();
+    if(button.dataset.panel==='audit')loadAudit();
+  });
+  $('#open-roles')?.addEventListener('click',openRoles);
+  for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,tabs[0]?.[0]===panel);
+  if(tabs[0]?.[0]==='reports')MagnusReports.load();
+  if(tabs[0]?.[0]==='leads')loadLeads();
+  if(tabs[0]?.[0]==='users')loadUsers();
+  if(tabs[0]?.[0]==='audit')loadAudit();
+  if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))initializeUserFilters();
+}
+async function authenticate(){
+  try{
+    const result=await api('/api/auth/me');state.user=result.user;
+    startDashboard();
+  }catch(error){
+    state.user=null;setVisible('#dashboard',false);setVisible('#login-panel',true);
+    if(error.message!=='Sign in required'&&error.message!=='Account is inactive')showNotice(error.message,true);
+  }
+}
+$('#login-form').addEventListener('submit',async event=>{
+  event.preventDefault();$('#login-error').hidden=true;
+  try{
+    const result=await api('/api/auth/login',json('POST',{email:$('#login-email').value,password:$('#login-password').value}));
+    state.user=result.user;
+    startDashboard();
+  }catch(error){$('#login-error').textContent=error.message;$('#login-error').hidden=false;}
+});
+$('#logout').addEventListener('click',async()=>{
+  try{await api('/api/auth/logout',json('POST',{}));state.user=null;$('#login-password').value='';setVisible('#dashboard',false);setVisible('#login-panel',true);}
+  catch(error){showNotice(`Could not sign out: ${error.message}`,true);}
+});
+function initializeUserFilters(){
+  api('/api/branches').then(branches=>{
+    state.branches=branches;
+    $('#filter-branch').innerHTML='<option value="">All branches</option>'+branches.map(branch=>`<option value="${esc(branch.id)}">${esc(branch.name)}</option>`).join('');
+  }).catch(error=>showNotice(error.message,true));
+  const allRoles=[['orientation_manager','Orientation Manager'],['branch_manager','Branch Manager'],['admin','Admin'],['developer','Developer'],...STAFF_TYPES.map(type=>[type,type.toUpperCase()])];
+  $('#filter-role').innerHTML='<option value="">All roles</option>'+allRoles.map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
+  $('#user-search').addEventListener('input',debounce(loadUsers,250));
+  for(const selector of ['#filter-branch','#filter-role','#filter-status'])$(selector).addEventListener('change',loadUsers);
+  $('#add-user').hidden=!roleOptions().length;
+  $('#add-user').addEventListener('click',()=>openUserDialog());
+  $('#user-form').addEventListener('submit',saveUser);
+  document.querySelectorAll('[data-close="user-dialog"]').forEach(button=>button.addEventListener('click',()=>$('#user-dialog').close()));
+}
+function debounce(fn,delay){let timer;return(...args)=>{clearTimeout(timer);timer=setTimeout(()=>fn(...args),delay);};}
+async function loadUsers(){
+  const params=new URLSearchParams({q:$('#user-search').value,branch:$('#filter-branch').value,role:$('#filter-role').value,status:$('#filter-status').value});
+  try{
+    state.users=await api(`/api/users?${params}`);
+    const body=$('#users-table tbody');
+    body.innerHTML=state.users.map(user=>{
+      const actions=[];
+      if(has(PERMISSION.userEdit)&&canManageDeveloper(user))actions.push(`<button data-action="edit" data-id="${esc(user.id)}">Edit</button>`);
+      if(has(PERMISSION.userDeactivate)&&user.active&&user.id!==state.user.id&&canManageDeveloper(user))actions.push(`<button class="secondary" data-action="deactivate" data-id="${esc(user.id)}">Deactivate</button>`);
+      if(has(PERMISSION.userEdit)&&!user.active&&!user.deleted_at&&user.id!==state.user.id&&canManageDeveloper(user))actions.push(`<button data-action="activate" data-id="${esc(user.id)}">Activate</button>`);
+      if(canRemove(user)&&user.id!==state.user.id&&!user.deleted_at)actions.push(`<button class="danger" data-action="remove" data-id="${esc(user.id)}">Remove</button>`);
+      return `<tr><td>${esc(user.name)}</td><td>${esc(user.mobile)}</td><td>${esc(user.role_name)}</td><td>${esc(user.branch||'—')}</td><td><span class="status ${user.deleted_at?'removed':user.active?'active':'inactive'}">${user.deleted_at?'Removed':user.active?'Active':'Inactive'}</span></td><td>${esc(fmtDate(user.last_login))}</td><td><div class="actions">${actions.join('')||'—'}</div></td></tr>`;
+    }).join('');
+    $('#users-table').hidden=!state.users.length;$('#users-empty').hidden=!!state.users.length;
+  }catch(error){showNotice(error.message,true);}
+}
+function openUserDialog(user=null){
+  const form=$('#user-form');form.reset();$('#user-form-error').hidden=true;
+  setPasswordVisibility(form.querySelector('[data-password-toggle="user-password"]'),false);
+  $('#user-dialog-title').textContent=user?'Edit user':'Add user';
+  $('#user-form').dataset.userId=user?.id||'';
+  const roleSelect=form.elements.role;
+  const options=roleOptions();
+  roleSelect.innerHTML=options.map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
+  const branchSelect=form.elements.branch_id;
+  branchSelect.innerHTML=state.branches.map(branch=>`<option value="${esc(branch.id)}">${esc(branch.name)}</option>`).join('');
+  const updateBranchVisibility=()=>{
+    document.querySelector('.branch-field').hidden=['admin','developer'].includes(roleSelect.value);
+  };
+  roleSelect.onchange=updateBranchVisibility;
+  if(user){
+    form.elements.name.value=user.name;form.elements.mobile.value=user.mobile;form.elements.email.value=user.email;
+    if(options.some(([key])=>key===user.role))roleSelect.value=user.role;
+    if(user.branch_id)branchSelect.value=user.branch_id;
+    form.elements.temporary_password.required=false;
+    form.elements.temporary_password.placeholder='Leave blank to keep current password';
+    const self=user.id===state.user.id;
+    roleSelect.disabled=self;branchSelect.disabled=self;
+  }else{
+    form.elements.temporary_password.required=true;
+    form.elements.temporary_password.placeholder='Set a password';
+    roleSelect.disabled=false;branchSelect.disabled=false;
+  }
+  updateBranchVisibility();
+  $('#user-dialog').showModal();
+}
+async function saveUser(event){
+  event.preventDefault();$('#user-form-error').hidden=true;
+  const form=event.currentTarget,userId=form.dataset.userId;
+  const body={name:form.elements.name.value.trim(),mobile:form.elements.mobile.value,email:form.elements.email.value.trim(),
+    temporary_password:form.elements.temporary_password.value};
+  if(!userId||!form.elements.role.disabled){
+    body.role=form.elements.role.value;
+    if(form.elements.branch_id.value)body.branch_id=form.elements.branch_id.value;
+  }
+  try{
+    await api(userId?`/api/users/${encodeURIComponent(userId)}`:'/api/users',json(userId?'PATCH':'POST',body));
+    $('#user-dialog').close();showNotice(userId?'User updated.':'User added.');loadUsers();
+  }catch(error){$('#user-form-error').textContent=error.message;$('#user-form-error').hidden=false;}
+}
+$('#users-table tbody').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-action]');if(!button)return;
+  const user=state.users.find(item=>item.id===button.dataset.id);if(!user)return;
+  if(button.dataset.action==='edit'){openUserDialog(user);return;}
+  if(button.dataset.action==='remove'&&!confirm(`Remove ${user.name}? This is a soft delete.`))return;
+  const endpoints={deactivate:['POST',`/api/users/${encodeURIComponent(user.id)}/deactivate`],
+    activate:['POST',`/api/users/${encodeURIComponent(user.id)}/activate`],
+    remove:['DELETE',`/api/users/${encodeURIComponent(user.id)}`]};
+  try{await api(endpoints[button.dataset.action][1],{method:endpoints[button.dataset.action][0]});showNotice('User status updated.');loadUsers();}
+  catch(error){showNotice(error.message,true);}
+});
+async function loadLeads(){
+  const canListen=has(PERMISSION.recordingListen);
+  $('#leads-head').innerHTML='<th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Status</th><th>Updated</th><th>Photo</th>'+(canListen?'<th>Recording</th>':'');
+  try{
+    const rows=await api('/api/admin/leads');$('#leads-empty').hidden=!!rows.length;$('#leads-table').hidden=!rows.length;
+    $('#leads-table tbody').innerHTML=rows.map(lead=>`<tr>
+      <td>${esc(lead.name)}</td><td>${esc(lead.phone)}</td><td>${esc(lead.place||'')}</td><td>${esc(lead.course||'')}</td>
+      <td>${esc(lead.payment||'')}</td><td>${lead.booking_amount?'₹'+Number(lead.booking_amount).toLocaleString('en-IN'):''}</td>
+      <td>${esc(lead.batch||'')}</td><td>${esc(lead.status||'')}</td><td>${esc((lead.updated||'').replace('T',' '))}</td>
+      <td><a href="/api/admin/lead_photo/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener">View</a></td>
+      ${canListen?`<td>${lead.recording_status==='complete'?`<audio controls preload="none" src="/api/admin/lead_recording/${encodeURIComponent(lead.id)}"></audio><a href="/api/admin/lead_recording/${encodeURIComponent(lead.id)}?download=1">Download</a>`:'—'}</td>`:''}
+    </tr>`).join('');
+  }catch(error){showNotice(error.message,true);}
+}
+$('#csv').addEventListener('click',async()=>{
+  try{const response=await fetch('/api/admin/leads.csv',{credentials:'same-origin'});if(!response.ok)throw new Error('CSV export failed');const link=document.createElement('a');link.href=URL.createObjectURL(await response.blob());link.download='magnus_leads.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
+  catch(error){showNotice(error.message,true);}
+});
+async function loadAudit(){
+  try{
+    const rows=await api('/api/audit');
+    $('#audit-list').innerHTML=rows.length?`<table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason / details</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${esc(fmtDate(row.timestamp))}</td><td>${esc(row.actor_name||'System')}</td><td>${esc(row.action)}</td><td>${esc(row.target_name||row.target_role_name||'—')}</td><td>${esc(row.reason||JSON.stringify(row.after||''))}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">No audit entries.</p>';
+  }catch(error){showNotice(error.message,true);}
+}
+function permissionGroups(groups,selected,editable,onChange){
+  return Object.entries(groups).map(([group,permissions])=>`<fieldset class="permission-group"><legend>${esc(group)}</legend>${permissions.map(permission=>`<label class="permission-row"><input type="checkbox" data-permission="${esc(permission.key)}" ${selected.has(permission.key)?'checked':''} ${editable?'':'disabled'}><span>${esc(permission.key)}</span><small>${esc(permission.description)}</small></label>`).join('')}</fieldset>`).join('');
+}
+async function openRoles(){
+  try{
+    const result=await api('/api/roles');state.roles=result.roles;state.groups=result.groups;
+    if(!state.roles.length)return;
+    $('#roles-dialog').showModal();
+    $('#role-list').innerHTML=state.roles.map(role=>`<button data-role="${esc(role.key)}" class="${role.key===state.roles[0].key?'active':''}">${esc(role.name)}${role.locked?' · locked':''}</button>`).join('');
+    $('#role-list').onclick=event=>{const button=event.target.closest('[data-role]');if(!button)return;document.querySelectorAll('#role-list button').forEach(item=>item.classList.toggle('active',item===button));state.selectedRole=state.roles.find(role=>role.key===button.dataset.role);drawRoleEditor();};
+    $('#role-definition-tab').onclick=()=>switchRoleTab(false);$('#user-overrides-tab').onclick=()=>switchRoleTab(true);
+    $('#role-list button').click();
+  }catch(error){showNotice(error.message,true);}
+}
+function switchRoleTab(overrides){
+  setVisible('#role-definition-view',!overrides);setVisible('#user-overrides-view',overrides);
+  $('#role-definition-tab').classList.toggle('active',!overrides);$('#user-overrides-tab').classList.toggle('active',overrides);
+  $('#user-overrides-tab').classList.toggle('secondary',!overrides);$('#role-definition-tab').classList.toggle('secondary',overrides);
+  if(overrides)loadOverrideUsers();
+}
+function drawRoleEditor(){
+  const role=state.selectedRole;if(!role)return;
+  state.baseRolePermissions=[...role.permissions].sort();
+  $('#role-permission-editor').innerHTML=`<h3>${esc(role.name)} permissions</h3>${permissionGroups(state.groups,new Set(role.permissions),role.editable)}`;
+  $('#role-permission-editor').onchange=updateRoleDiff;
+  updateRoleDiff();
+}
+function updateRoleDiff(){
+  const role=state.selectedRole,checked=[...$('#role-permission-editor').querySelectorAll('input:checked')].map(input=>input.dataset.permission).sort();
+  const before=new Set(state.baseRolePermissions),after=new Set(checked);
+  const additions=checked.filter(key=>!before.has(key)),removals=state.baseRolePermissions.filter(key=>!after.has(key));
+  const changes=[...additions.map(key=>`+ ${key}`),...removals.map(key=>`− ${key}`)];
+  $('#role-diff').textContent=changes.join(' · ');$('#role-save-bar').hidden=!changes.length;
+  $('#save-role').disabled=!role.editable;
+}
+$('#discard-role').addEventListener('click',drawRoleEditor);
+$('#save-role').addEventListener('click',async()=>{
+  const role=state.selectedRole,permissions=[...$('#role-permission-editor').querySelectorAll('input:checked')].map(input=>input.dataset.permission);
+  const summary=$('#role-diff').textContent;
+  if(!confirm(`Save these permission changes for ${role.name}?\n${summary}`))return;
+  try{await api(`/api/roles/${encodeURIComponent(role.key)}`,json('PUT',{permissions}));role.permissions=permissions;drawRoleEditor();showNotice('Role permissions saved.');}
+  catch(error){showNotice(error.message,true);}
+});
+async function loadOverrideUsers(){
+  try{
+    const users=await api('/api/users?status=active');
+    const editableUsers=users.filter(user=>user.id!==state.user.id&&canManageDeveloper(user));
+    $('#override-user').innerHTML=editableUsers.map(user=>`<option value="${esc(user.id)}">${esc(user.name)} · ${esc(user.role_name)}</option>`).join('');
+    $('#override-user').onchange=loadUserOverrides;
+    if(editableUsers.length){state.overrideUser=editableUsers[0].id;await loadUserOverrides();}
+    else $('#override-editor').innerHTML='<p class="empty">No other users available for overrides.</p>';
+  }catch(error){showNotice(error.message,true);}
+}
+async function loadUserOverrides(){
+  const userId=$('#override-user').value;if(!userId)return;
+  try{
+    const result=await api(`/api/users/${encodeURIComponent(userId)}/permissions`);state.overrideUser=userId;state.overrideGroups=result;
+    state.baseOverrides=Object.fromEntries(result.overrides.map(item=>[item.key,{allowed:!!item.allowed,reason:item.reason}]));
+    const selected=new Set(result.permissions);
+    $('#override-editor').innerHTML=`<h3>Permission overrides for ${esc(result.user.name)}</h3>${Object.entries(state.groups).map(([group,permissions])=>`<fieldset class="permission-group"><legend>${esc(group)}</legend>${permissions.map(permission=>{
+      const override=state.baseOverrides[permission.key],value=override?(override.allowed?'allow':'deny'):'inherit';
+      return `<label class="permission-row"><span>${esc(permission.key)}<small>${esc(permission.description)}</small></span><select data-override="${esc(permission.key)}" ${result.locked?'disabled':''}><option value="inherit" ${value==='inherit'?'selected':''}>Use role default</option><option value="allow" ${value==='allow'?'selected':''}>Allow</option><option value="deny" ${value==='deny'?'selected':''}>Deny</option></select><input data-reason="${esc(permission.key)}" placeholder="Reason required for allow/deny" value="${esc(override?.reason||'')}" ${result.locked?'disabled':''}></label>`;
+    }).join('')}</fieldset>`).join('')}`;
+    $('#override-editor').onchange=updateOverrideDiff;$('#override-editor').oninput=updateOverrideDiff;updateOverrideDiff();
+  }catch(error){showNotice(error.message,true);}
+}
+function currentOverrides(){
+  const result={};
+  $('#override-editor').querySelectorAll('[data-override]').forEach(select=>{
+    const key=select.dataset.override,value=select.value;
+    result[key]=value==='inherit'?null:{allowed:value==='allow',reason:$('#override-editor').querySelector(`[data-reason="${CSS.escape(key)}"]`).value.trim()};
+  });
+  return result;
+}
+function updateOverrideDiff(){
+  const current=currentOverrides(),changes=[];
+  for(const [key,value] of Object.entries(current)){
+    const before=state.baseOverrides[key]||null;
+    const normalized=value&&{allowed:value.allowed,reason:value.reason};
+    if(JSON.stringify(before)!==JSON.stringify(normalized))changes.push(`${key}: ${before?before.allowed?'allow':'deny':'inherit'} → ${normalized?normalized.allowed?'allow':'deny':'inherit'}`);
+  }
+  $('#override-diff').textContent=changes.join(' · ');$('#override-save-bar').hidden=!changes.length;
+}
+$('#discard-overrides').addEventListener('click',loadUserOverrides);
+$('#save-overrides').addEventListener('click',async()=>{
+  const overrides=Object.entries(currentOverrides()).map(([key,value])=>({key,allowed:value?value.allowed:null,reason:value?.reason||''}));
+  const summary=$('#override-diff').textContent;
+  if(!confirm(`Save these user permission overrides?\n${summary}`))return;
+  try{await api(`/api/users/${encodeURIComponent(state.overrideUser)}/permissions`,json('PUT',{overrides}));await loadUserOverrides();showNotice('User overrides saved.');}
+  catch(error){showNotice(error.message,true);}
+});
+document.querySelectorAll('[data-close="roles-dialog"]').forEach(button=>button.addEventListener('click',()=>$('#roles-dialog').close()));
+authenticate();
 </script></body></html>

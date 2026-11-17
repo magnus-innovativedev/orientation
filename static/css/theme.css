@@ -149,9 +149,34 @@ meta { color: #06111b; }
 .amt.sel { outline: 3px solid #a9d8ef; outline-offset: 2px; }
 .amt-card.due { border-color: #fde68a; } .amt-card.due b { color: #fde68a; }
 .amt-card.done { border-color: #a9d8ef; } .amt-card.done b { color: #c4e7f7; }
-.lock { border-color: rgba(255,255,255,.3); color: #fff; background: var(--glass); transition: transform .35s var(--spring), background .3s; }
-.lock:hover { transform: rotate(12deg) scale(1.12); background: var(--glass-strong); }
-.lock.on { color: #c4e7f7; border-color: #a9d8ef; }
+.header-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 999px;
+  background: var(--glass);
+  color: #fff;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform .35s var(--spring), background .3s, color .3s;
+}
+.header-login:hover { transform: translateY(-1px); background: var(--glass-strong); }
+.header-login.on { color: #c4e7f7; border-color: #a9d8ef; }
+.header-management-link {
+  color: #d7ecf7;
+  font-size: .78rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header-management-link:hover { color: #fff; }
 
 /* ---------- forms ---------- */
 input[type=text], input:not([type]), input[type=number], select { background: rgba(154,192,211,.1); border: 1px solid rgba(185,219,237,.28); color: #fff; transition: border-color .3s ease, box-shadow .25s, background .3s ease, color .3s ease, transform .25s; }
@@ -480,12 +505,15 @@ html[data-theme="light"] .summary dt { color: #52677b; }
 html[data-theme="light"] .amt-card b { color: #1c3042; }
 html[data-theme="light"] .amt-card.due b { color: #9a6500; }
 html[data-theme="light"] .amt-card.done b { color: #286d91; }
-html[data-theme="light"] .lock {
+html[data-theme="light"] .header-login {
   background: #fff;
   border-color: #cbdbe5;
   color: #29465b;
 }
-html[data-theme="light"] .lock.on { color: #286d91; border-color: #8db6cc; }
+html[data-theme="light"] .header-login:hover { background: #edf5f9; }
+html[data-theme="light"] .header-login.on { color: #286d91; border-color: #8db6cc; }
+html[data-theme="light"] .header-management-link { color: #286d91; }
+html[data-theme="light"] .header-management-link:hover { color: #173d55; }
 html[data-theme="light"] input[type=text],
 html[data-theme="light"] input:not([type]),
 html[data-theme="light"] input[type=number],

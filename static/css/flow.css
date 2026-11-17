@@ -89,8 +89,12 @@ main { overflow: visible; padding: 8px 0 24px; }
 .pin-dialog > p { margin: 8px 0 0; color: var(--text-secondary); line-height: 1.5; }
 .pin-form { display: grid; gap: 9px; margin-top: 20px; }
 .pin-form label { color: var(--text-secondary); font-size: .85rem; font-weight: 700; }
-.pin-form input[type=password] { width: 100%; min-height: 46px; padding: 12px; border: 1px solid rgba(185,219,237,.38); border-radius: 10px; background: rgba(4,16,25,.62); color: #fff; font: inherit; }
-.pin-form input[type=password]:focus { outline: none; border-color: #c4e7f7; box-shadow: 0 0 0 3px rgba(124,188,216,.28); }
+.password-field { position: relative; }
+.pin-form .password-field input { width: 100%; min-height: 46px; padding: 12px 48px 12px 12px; border: 1px solid rgba(185,219,237,.38); border-radius: 10px; background: rgba(4,16,25,.62); color: #fff; font: inherit; }
+.pin-form .password-field input:focus { outline: none; border-color: #c4e7f7; box-shadow: 0 0 0 3px rgba(124,188,216,.28); }
+.password-eye { position: absolute; top: 50%; right: 6px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; transform: translateY(-50%); border: 0; border-radius: 8px; background: transparent; color: #c5d4ea; box-shadow: none; cursor: pointer; }
+.password-eye:hover { background: rgba(255,255,255,.1); }
+.password-eye:focus-visible { outline: 2px solid #c4e7f7; outline-offset: 1px; }
 .pin-dialog-error { margin: 0; color: #fecaca; font-size: .85rem; }
 .pin-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .pin-dialog-actions button { min-width: 90px; }

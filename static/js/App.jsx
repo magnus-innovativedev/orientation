@@ -1,16 +1,25 @@
 const { useState, useEffect, useRef } = React;
 
+const PERMISSION = Object.freeze({
+  visitorCreate: 'visitor.create',
+  visitorResume: 'visitor.resume',
+  userViewAll: 'user.view_all',
+  userViewOwnBranch: 'user.view_own_branch',
+  mediaUploadImage: 'media.upload_image',
+  mediaUploadVideo: 'media.upload_video',
+});
+
 /* ---------- helpers ---------- */
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const api = async (url, opt = {}) => {
-  const r = await fetch(url, opt);
+  const r = await fetch(url, { credentials: 'same-origin', ...opt });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 };
-const send = (method, body, pin) => ({
+const send = (method, body) => ({
   method,
-  headers: { 'Content-Type': 'application/json', ...(pin ? { 'X-Admin-Pin': pin } : {}) },
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(body),
 });
 const AUDIO_RECORDING_ID_KEY = 'audioRecordingId';
@@ -405,20 +414,22 @@ const gate = (s, lead) => {
 };
 
 /* ---------- media slot ---------- */
-function MediaSlot({ slot, kind, media, admin, pin, reload, label, unlock, viewMedia }) {
+function MediaSlot({ slot, kind, media, authUser, reload, label, unlock, viewMedia }) {
   const input = useRef();
   const m = media[slot];
+  const uploadPermission = kind === 'video' ? PERMISSION.mediaUploadVideo : PERMISSION.mediaUploadImage;
+  const canUpload = !!authUser?.permissions?.includes(uploadPermission);
   const upload = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     const fd = new FormData();
     fd.append('file', f);
     fd.append('kind', kind);
-    try { await api(`/api/media/${slot}`, { method: 'POST', headers: { 'X-Admin-Pin': pin }, body: fd }); reload(); }
+    try { await api(`/api/media/${slot}`, { method: 'POST', body: fd }); reload(); }
     catch (err) { alert(err.message); }
   };
   const remove = async () => {
-    try { await api(`/api/media/${slot}`, { method: 'DELETE', headers: { 'X-Admin-Pin': pin } }); reload(); }
+    try { await api(`/api/media/${slot}`, { method: 'DELETE' }); reload(); }
     catch (err) { alert(err.message); }
   };
   const openViewer = () => viewMedia({ ...m, label: label || slot });
@@ -434,7 +445,7 @@ function MediaSlot({ slot, kind, media, admin, pin, reload, label, unlock, viewM
             <i className={`fa-solid ${kind === 'video' ? 'fa-circle-play' : 'fa-camera'}`}></i>
             <span>{kind === 'video' ? 'Video' : 'Photo'} coming soon</span>
           </div>}
-      {admin && <>
+      {canUpload && <>
         <button type="button" className="media-up" onClick={() => input.current.click()}>
           <i className="fa-solid fa-upload"></i> {m ? 'Replace' : 'Upload'} {kind} · {slot}
         </button>
@@ -442,7 +453,7 @@ function MediaSlot({ slot, kind, media, admin, pin, reload, label, unlock, viewM
           aria-label={`Remove media from ${slot}`}><i className="fa-solid fa-xmark" aria-hidden="true"></i></button>}
         <input ref={input} type="file" hidden accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={upload} />
       </>}
-      {!admin && <button type="button" className="media-up" onClick={unlock}>
+      {!authUser && <button type="button" className="media-up" onClick={unlock}>
         <i className="fa-solid fa-lock"></i> Sign in to upload {kind}
       </button>}
     </div>
@@ -1036,17 +1047,20 @@ function SummarySlide({ cfg, lead, onNew, recording }) {
 /* ---------- app shell ---------- */
 function App() {
   const [cfg, setCfg] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') === 'light' ? 'light' : 'dark');
+  const [theme, setTheme] = useState('light');
   const [media, setMedia] = useState({});
   const [lead, setLead] = useState({});
   const [i, setI] = useState(0);
   const [dir, setDir] = useState('fwd');
   const [toast, setToast] = useState('');
-  const [pin, setPin] = useState(sessionStorage.getItem('pin') || '');
-  const [pinDialogOpen, setPinDialogOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [pinBusy, setPinBusy] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginPasswordVisible, setLoginPasswordVisible] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
   const [viewingMedia, setViewingMedia] = useState(null);
   const [recording, setRecording] = useState(() => {
     const id = localStorage.getItem(AUDIO_RECORDING_ID_KEY);
@@ -1065,7 +1079,9 @@ function App() {
   const finishBusyRef = useRef(false);
   const ref = useRef(lead); ref.current = lead;
   const s = STEPS[i];
-  const admin = !!pin;
+  const signedIn = !!authUser;
+  const hasPermission = (key) => !!authUser?.permissions?.includes(key);
+  const isExplicitCounsellingFlow = new URLSearchParams(window.location.search).get('flow') === '1';
 
   const updateRecording = (update) => {
     const next = typeof update === 'function' ? update(recordingRef.current) : update;
@@ -1203,6 +1219,15 @@ function App() {
       updateRecording((current) => ({ ...current, error: 'Consent is required before recording.' }));
       return false;
     }
+    if (!authUser) {
+      setLoginDialogOpen(true);
+      setToast('Sign in before starting a visitor session.');
+      return false;
+    }
+    if (!hasPermission(PERMISSION.visitorCreate)) {
+      setToast('Your account cannot start visitor sessions.');
+      return false;
+    }
     updateRecording((current) => ({ ...current, status: 'starting', error: '', uploadWarning: '' }));
     let stream;
     try {
@@ -1239,6 +1264,15 @@ function App() {
   };
   const resumeRecordingSession = async (leadId) => {
     const current = recordingRef.current;
+    if (!authUser) {
+      setLoginDialogOpen(true);
+      setToast('Sign in to resume this visitor session.');
+      return false;
+    }
+    if (!hasPermission(PERMISSION.visitorResume)) {
+      setToast('Your account cannot resume visitor sessions.');
+      return false;
+    }
     if (!current.id || !current.token) return startRecordingSession(leadId, true);
     updateRecording((session) => ({ ...session, status: 'starting', error: '', uploadWarning: '' }));
     let stream;
@@ -1339,17 +1373,45 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f4f8fc' : '#06111b');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#EEE4DF' : '#EEE4DF');
   }, [theme]);
 
   const reload = () => api('/api/media').then(setMedia).catch(() => {});
   useEffect(() => {
     api('/api/config').then(setCfg).catch((e) => setToast(e.message));
+    let redirectingToDashboard = false;
+    api('/api/auth/me').then((result) => {
+      if (result.user.role === 'developer' && !isExplicitCounsellingFlow) {
+        redirectingToDashboard = true;
+        window.location.replace('/admin');
+        return;
+      }
+      setAuthUser(result.user);
+    }).catch((error) => {
+      setLoginDialogOpen(true);
+      if (error.message !== 'Sign in required' && error.message !== 'Account is inactive') {
+        setToast(`Could not check your sign-in: ${error.message}`);
+      }
+    }).finally(() => {
+      if (!redirectingToDashboard) setAuthReady(true);
+    });
     reload();
+  }, [isExplicitCounsellingFlow]);
+  useEffect(() => {
     const id = localStorage.getItem('leadId');
-    if (id) api(`/api/leads/${id}`).then((l) => { setLead(l); setI(Math.min(l.progress || 0, STEPS.length - 1)); })
-      .catch(() => localStorage.removeItem('leadId'));
-  }, []);
+    if (!authUser || !id) return undefined;
+    let cancelled = false;
+    api(`/api/leads/${id}`).then((visitor) => {
+      if (cancelled) return;
+      setLead(visitor);
+      setI(Math.min(visitor.progress || 0, STEPS.length - 1));
+    }).catch((error) => {
+      if (cancelled) return;
+      if (error.message === 'Visitor not found') localStorage.removeItem('leadId');
+      else setToast(`Could not resume visitor: ${error.message}`);
+    });
+    return () => { cancelled = true; };
+  }, [authUser]);
   useEffect(() => {
     const id = localStorage.getItem(AUDIO_RECORDING_ID_KEY);
     const token = localStorage.getItem(AUDIO_RECORDING_TOKEN_KEY);
@@ -1483,52 +1545,107 @@ function App() {
     setLead({});
     setI(0);
   };
-  const unlock = () => {
-    if (admin) { sessionStorage.removeItem('pin'); setPin(''); return; }
-    setPinInput('');
-    setPinError('');
-    setPinDialogOpen(true);
+  const openLoginDialog = () => {
+    setLoginPassword('');
+    setLoginError('');
+    setLoginDialogOpen(true);
   };
-  const closePinDialog = () => {
-    setPinDialogOpen(false);
-    setPinInput('');
-    setPinError('');
+  const closeLoginDialog = () => {
+    setLoginDialogOpen(false);
+    setLoginPassword('');
+    setLoginPasswordVisible(false);
+    setLoginError('');
   };
-  const submitPin = async (event) => {
+  const unlock = async () => {
+    if (signedIn) {
+      if (recordingRef.current.status === 'recording' || recordingRef.current.status === 'starting') {
+        setToast('Complete the current visitor session before signing out.');
+        return;
+      }
+      try {
+        await api('/api/auth/logout', send('POST', {}));
+        setAuthUser(null);
+        setLoginDialogOpen(true);
+      } catch (error) {
+        setToast(`Could not sign out: ${error.message}`);
+      }
+      return;
+    }
+    openLoginDialog();
+  };
+  const submitLogin = async (event) => {
     event.preventDefault();
-    const candidate = pinInput.trim();
-    if (!candidate) { setPinError('Enter the Counsellor PIN.'); return; }
-    setPinBusy(true);
+    if (!loginEmail.trim() || !loginPassword) { setLoginError('Enter your email and password.'); return; }
+    setLoginBusy(true);
     try {
-      await api('/api/admin/login', send('POST', {}, candidate));
-      sessionStorage.setItem('pin', candidate);
-      setPin(candidate);
-      closePinDialog();
+      const result = await api('/api/auth/login', send('POST', {
+        email: loginEmail.trim(), password: loginPassword,
+      }));
+      if (result.user.role === 'developer' && !isExplicitCounsellingFlow) {
+        window.location.replace('/admin');
+        return;
+      }
+      setAuthUser(result.user);
+      closeLoginDialog();
     } catch (err) {
-      setPinError(err.message === 'Admin PIN required' ? 'Incorrect PIN. Please try again.' : `Could not sign in: ${err.message}`);
+      setLoginError(err.message);
     } finally {
-      setPinBusy(false);
+      setLoginBusy(false);
     }
   };
-
   useEffect(() => {
     const k = (e) => {
       if (viewingMedia) {
         if (e.key === 'Escape') setViewingMedia(null);
         return;
       }
-      if (pinDialogOpen) {
-        if (e.key === 'Escape') closePinDialog();
+      if (loginDialogOpen) {
+        if (e.key === 'Escape') closeLoginDialog();
         return;
       }
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
       if (e.key === 'ArrowRight') go(i + 1); if (e.key === 'ArrowLeft') go(i - 1);
     };
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
   });
 
+  if (!authReady) return <div className="boot" role="status">Checking your sign-in…</div>;
+  if (!authUser) {
+    return (
+      <div className="pin-dialog-backdrop">
+        <section className="pin-dialog" role="main" aria-labelledby="pin-dialog-title">
+          <h1 id="pin-dialog-title">Sign in to Magnus</h1>
+          <p>Use your assigned username (email) and password to enter the portal.</p>
+          <form className="pin-form" onSubmit={submitLogin}>
+            <label htmlFor="counsellor-email">Username (email)</label>
+            <input id="counsellor-email" type="email" autoComplete="username" autoFocus
+              value={loginEmail} onChange={(event) => { setLoginEmail(event.target.value); setLoginError(''); }}
+              aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+            <label htmlFor="counsellor-password">Password</label>
+            <div className="password-field">
+              <input id="counsellor-password" type={loginPasswordVisible ? 'text' : 'password'} autoComplete="current-password"
+                value={loginPassword} onChange={(event) => { setLoginPassword(event.target.value); setLoginError(''); }}
+                aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+              <button type="button" className="password-eye" onClick={() => setLoginPasswordVisible((visible) => !visible)}
+                aria-label={loginPasswordVisible ? 'Hide password' : 'Show password'}
+                title={loginPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={loginPasswordVisible}>
+                <i className={`fa-solid ${loginPasswordVisible ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
+              </button>
+            </div>
+            {loginError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{loginError}</p>}
+            <div className="pin-dialog-actions">
+              <button type="submit" className="btn-next" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
+                {loginBusy ? 'Signing in…' : 'Sign in'}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    );
+  }
   if (!cfg) return <div className="boot" role="status">{toast || 'Loading…'}</div>;
-  const mp = { media, admin, pin, reload, unlock, viewMedia: setViewingMedia };
+  const mp = { media, authUser, reload, unlock, viewMedia: setViewingMedia };
   const phase = PHASES.find((p) => p.id === s.phase);
   const acknowledged = s.key === 'terms' || !!(lead.acknowledgments || {})[s.key];
   const body = {
@@ -1566,8 +1683,15 @@ function App() {
           {recording.status === 'recording' && (
             <span className="recording-indicator" role="status"><span className="recording-dot"></span>Recording</span>
           )}
-          <button className={`lock ${admin ? 'on' : ''}`} onClick={unlock} title={admin ? 'Counsellor mode on · tap to lock' : 'Counsellor sign-in'}
-            aria-label={admin ? 'Lock counsellor mode' : 'Counsellor sign-in'}><i className={`fa-solid ${admin ? 'fa-lock-open' : 'fa-lock'}`}></i></button>
+          {(hasPermission(PERMISSION.userViewAll) || hasPermission(PERMISSION.userViewOwnBranch)) && (
+            <a className="header-management-link" href="/admin">Manage</a>
+          )}
+          <button className={`header-login ${signedIn ? 'on' : ''}`} onClick={unlock}
+            title={signedIn ? `Signed in as ${authUser.name} · sign out` : 'Sign in with your user account'}
+            aria-label={signedIn ? 'Sign out' : 'User sign-in'}>
+            <i className={`fa-solid ${signedIn ? 'fa-right-from-bracket' : 'fa-user'}`} aria-hidden="true"></i>
+            <span>{signedIn ? 'Sign out' : 'Sign in'}</span>
+          </button>
           <button type="button" className="theme-toggle" onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
@@ -1643,25 +1767,36 @@ function App() {
         </footer>
       )}
 
-      {pinDialogOpen && (
+      {loginDialogOpen && (
         <div className="pin-dialog-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closePinDialog();
+          if (authUser && event.target === event.currentTarget) closeLoginDialog();
         }} onKeyDown={(event) => {
-          if (event.key === 'Escape') closePinDialog();
+          if (authUser && event.key === 'Escape') closeLoginDialog();
         }}>
           <section className="pin-dialog" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
-            <h2 id="pin-dialog-title">Counsellor sign-in</h2>
-            <p>Enter your PIN to upload or replace slide photos and videos.</p>
-            <form className="pin-form" onSubmit={submitPin}>
-              <label htmlFor="counsellor-pin">Counsellor PIN</label>
-              <input id="counsellor-pin" type="password" autoComplete="current-password" autoFocus
-                value={pinInput} onChange={(event) => { setPinInput(event.target.value); setPinError(''); }}
-                aria-invalid={!!pinError} aria-describedby={pinError ? 'pin-dialog-error' : undefined} />
-              {pinError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{pinError}</p>}
+            <h2 id="pin-dialog-title">User sign-in</h2>
+            <p>Sign in with your assigned username (email) and password to continue.</p>
+            <form className="pin-form" onSubmit={submitLogin}>
+              <label htmlFor="counsellor-email">Username (email)</label>
+              <input id="counsellor-email" type="email" autoComplete="username" autoFocus
+                value={loginEmail} onChange={(event) => { setLoginEmail(event.target.value); setLoginError(''); }}
+                aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+              <label htmlFor="counsellor-password">Password</label>
+              <div className="password-field">
+                <input id="counsellor-password" type={loginPasswordVisible ? 'text' : 'password'} autoComplete="current-password"
+                  value={loginPassword} onChange={(event) => { setLoginPassword(event.target.value); setLoginError(''); }}
+                  aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+                <button type="button" className="password-eye" onClick={() => setLoginPasswordVisible((visible) => !visible)}
+                  aria-label={loginPasswordVisible ? 'Hide password' : 'Show password'}
+                  title={loginPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={loginPasswordVisible}>
+                  <i className={`fa-solid ${loginPasswordVisible ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
+                </button>
+              </div>
+              {loginError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{loginError}</p>}
               <div className="pin-dialog-actions">
-                <button type="button" className="btn-prev" onClick={closePinDialog}>Cancel</button>
-                <button type="submit" className="btn-next" disabled={pinBusy || !pinInput.trim()}>
-                  {pinBusy ? 'Checking…' : 'Sign in'}
+                {authUser && <button type="button" className="btn-prev" onClick={closeLoginDialog}>Cancel</button>}
+                <button type="submit" className="btn-next" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
+                  {loginBusy ? 'Signing in…' : 'Sign in'}
                 </button>
               </div>
             </form>
