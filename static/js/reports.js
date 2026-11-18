@@ -225,8 +225,15 @@
       filtersRoot.querySelectorAll('.pill').forEach((p) => p.setAttribute('aria-pressed', p.dataset.status === status));
     }
     const hint = DATA.scope === 'branch' && !ALL.length ? `<div class="raised panel">${flag('No visitors are saved to ' + esc(DATA.branch_name || 'this branch') + ' yet.', 'Visitors appear here once they are registered by a user assigned to this branch.')}</div>` : '';
-    root.classList.toggle('one', section !== 'branches');
-    root.querySelector('#rpt-view').innerHTML = section === 'branches' ? `<div class="grid">${branchTable(scoped())}</div>` : hint + V[view](scoped());
+    const rows = scoped();
+    const compact = section !== 'branches' && status === 'all';
+    const records = status === 'all' ? '' : tablePanel(rows, 'Visitor records',
+      status === 'booked' ? 'Booked visitors' : 'Visitors who have not booked yet', true);
+    document.body.classList.toggle('fit', compact);
+    root.classList.toggle('one', compact);
+    root.querySelector('#rpt-view').innerHTML = section === 'branches'
+      ? `<div class="grid">${branchTable(rows)}</div>`
+      : hint + V[view](rows) + records;
     animateIn();
   }
   function prepare(d) {
