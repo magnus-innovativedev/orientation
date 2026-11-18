@@ -4,10 +4,12 @@ from contextlib import contextmanager
 from functools import wraps
 from datetime import datetime, timedelta
 import bcrypt
+from dotenv import load_dotenv
 from flask import Flask, Response, abort, g, jsonify, render_template, request, send_from_directory, session
 from werkzeug.utils import secure_filename
 
 BASE = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE, "env", ".env"))
 DATA = os.path.abspath(os.environ.get("MAGNUS_DATA_DIR", os.path.join(BASE, "data")))
 MEDIA = os.path.join(DATA, "media")
 LEGACY_MEDIA = os.path.join(BASE, "static", "media")
