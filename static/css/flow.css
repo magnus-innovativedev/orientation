@@ -40,7 +40,7 @@ main { overflow: visible; padding: 8px 0 24px; }
 .hero-topic-chip i { color: var(--accent-cyan); font-size: .95rem; }
 .hero-brand-logos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 368px; }
 .hero-brand-logo { display: grid; place-items: center; width: 76px; max-width: 100%; aspect-ratio: 1; padding: 8px; border: 0; border-radius: 50%; color: inherit; font: inherit; }
-.hero-brand-logo img { display: block; width: 50px; height: 50px; object-fit: contain; filter: brightness(0) invert(1); }
+.hero-brand-logo img { display: block; width: 50px; height: 50px; object-fit: contain; filter: brightness(0); }
 .chip.tag { margin-left: 8px; background: var(--amber); color: #0a1b3d; font-style: normal; font-size: .7rem; padding: 3px 9px; }
 
 .fbanner { display: flex; align-items: center; justify-content: space-between; gap: 18px; background: #0a1b3d; border: 1px solid #1b3a6b; border-radius: 18px; padding: 18px 22px; margin-bottom: 16px; }
