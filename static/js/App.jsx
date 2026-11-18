@@ -216,7 +216,7 @@ const SLIDES = [
     banner: { t: 'Age comparison', d: 'Mentally · Physically · Financially', slot: 'growth-banner' }, cards: [
       card('Age 18', 'Job', null, { icon: 'fa-briefcase' }),
       card('Age 20', '₹20,000 / ₹40,000 · Car', null, { icon: 'fa-car' }),
-      card('Age 23', 'Marriage', null, { icon: 'fa-heart-handshake' })] },
+      card('Age 23', 'Marriage', null, { icon: 'fa-ring' })] },
 
   { key: 'compare', phase: 'fees', type: 'compare', title: 'Why Laptop?' },
   { key: 'fees', phase: 'fees', type: 'fees', title: 'Choose your course' },
@@ -802,8 +802,8 @@ function DocsSlide({ cfg, lead, patch }) {
   );
 }
 
-function BookingSlide({ cfg, lead, patch }) {
-  const b = cfg.booking, nb = cfg.next_batch, fileRef = useRef(), cameraVideoRef = useRef();
+function StudentPhotoSlide({ lead, patch }) {
+  const fileRef = useRef(), cameraVideoRef = useRef();
   const [msg, setMsg] = useState('');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
@@ -957,10 +957,8 @@ function BookingSlide({ cfg, lead, patch }) {
     }
     e.target.value = '';
   };
-  const left = lead.booking_amount ? Math.max(b.first_payment_total - lead.booking_amount, 0) : null;
-  const when = `${new Date(nb.date + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}, ${nb.time}`;
   return (
-    <div className="fgrid" style={{ '--cols': 2 }}>
+    <>
       <article className="fcard">
         <h3>Student photo</h3>
         <button type="button" className="media drop" onClick={openCamera}>
@@ -968,26 +966,6 @@ function BookingSlide({ cfg, lead, patch }) {
         </button>
         <input ref={fileRef} type="file" hidden accept="image/jpeg,image/png,image/webp,image/gif" capture="user" onChange={upload} />
         {msg && <p className="muted" role="status">{msg}</p>}
-        <div className="note"><small>Next batch</small><b>{when}</b></div>
-      </article>
-      <article className="fcard">
-        <h3>Booking amount</h3>
-        <div className="amounts" role="radiogroup" aria-label="Booking amount">
-          {b.options.map((a, i) => (
-            <button type="button" key={a} role="radio" aria-checked={lead.booking_amount === a}
-              className={`amt ${i === 0 ? 'top' : ''} ${lead.booking_amount === a ? 'sel' : ''}`}
-              onClick={() => patch({ booking_amount: a, batch: when })}>{inr(a)}</button>
-          ))}
-        </div>
-        {left !== null && (
-          <>
-            <div className="amounts balance" aria-live="polite">
-              <div className="amt-card"><small>Paying now</small><b>{inr(lead.booking_amount)}</b></div>
-              <div className={`amt-card ${left === 0 ? 'done' : 'due'}`}><small>{left === 0 ? 'Remaining' : 'Remaining to pay'}</small><b>{inr(left)}</b></div>
-            </div>
-            <p className="muted">{left === 0 ? 'First payment complete.' : `Complete the remaining ${inr(left)} of the ${inr(b.first_payment_total)} first payment before the batch starts.`}</p>
-          </>
-        )}
       </article>
       {cameraOpen && (
         <div className="camera-dialog-backdrop" onMouseDown={(event) => {
@@ -1017,11 +995,44 @@ function BookingSlide({ cfg, lead, patch }) {
           </section>
         </div>
       )}
+    </>
+  );
+}
+
+function BookingSlide({ cfg, lead, patch }) {
+  const b = cfg.booking, nb = cfg.next_batch;
+  const left = lead.booking_amount ? Math.max(b.first_payment_total - lead.booking_amount, 0) : null;
+  const when = `${new Date(nb.date + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}, ${nb.time}`;
+  return (
+    <div className="fgrid" style={{ '--cols': 2 }}>
+      <article className="fcard">
+        <h3>Next batch</h3>
+        <div className="note"><b>{when}</b></div>
+      </article>
+      <article className="fcard">
+        <h3>Booking amount</h3>
+        <div className="amounts" role="radiogroup" aria-label="Booking amount">
+          {b.options.map((a, i) => (
+            <button type="button" key={a} role="radio" aria-checked={lead.booking_amount === a}
+              className={`amt ${i === 0 ? 'top' : ''} ${lead.booking_amount === a ? 'sel' : ''}`}
+              onClick={() => patch({ booking_amount: a, batch: when })}>{inr(a)}</button>
+          ))}
+        </div>
+        {left !== null && (
+          <>
+            <div className="amounts balance" aria-live="polite">
+              <div className="amt-card"><small>Paying now</small><b>{inr(lead.booking_amount)}</b></div>
+              <div className={`amt-card ${left === 0 ? 'done' : 'due'}`}><small>{left === 0 ? 'Remaining' : 'Remaining to pay'}</small><b>{inr(left)}</b></div>
+            </div>
+            <p className="muted">{left === 0 ? 'First payment complete.' : `Complete the remaining ${inr(left)} of the ${inr(b.first_payment_total)} first payment before the batch starts.`}</p>
+          </>
+        )}
+      </article>
     </div>
   );
 }
 
-function SummarySlide({ cfg, lead, onNew, recording }) {
+function SummarySlide({ cfg, lead, patch, onNew, recording }) {
   const c = cfg.courses[lead.course] || {};
   const missing = cfg.documents.filter((d) => !(lead.docs || {})[d.key]).map((d) => d.label);
   const payLabel = { cash: 'Cash', loan: 'Pure loan', mix: 'Loan + cash' }[lead.payment];
@@ -1030,15 +1041,18 @@ function SummarySlide({ cfg, lead, onNew, recording }) {
     ['Payment', payLabel], ['Booking amount', lead.booking_amount && inr(lead.booking_amount)], ['Batch', lead.batch],
     ['Documents pending', missing.length ? missing.join(', ') : 'None']];
   return (
-    <div className="fcard summary">
-      <div className="badge-icon" aria-hidden="true"><i className="fa-solid fa-check"></i></div>
-      <h2>Booking recorded</h2>
-      {recording.status === 'complete' && <p role="status">Audio recording saved securely.</p>}
-      {recording.status === 'stopped_pending' && <p role="status">The audio recording is queued and will be saved when the connection returns.</p>}
-      <dl>{rows.filter((r) => r[1]).map((r) => <div key={r[0]}><dt>{r[0]}</dt><dd>{r[1]}</dd></div>)}</dl>
-      <div className="actions no-print">
-        <button className="btn-next" onClick={() => window.print()}><i className="fa-solid fa-print"></i><span>Print summary</span></button>
-        <button className="btn-prev" disabled={recording.status === 'stopped_pending'} onClick={onNew}>New visitor</button>
+    <div className="fgrid summary-layout" style={{ '--cols': 2 }}>
+      <StudentPhotoSlide lead={lead} patch={patch} />
+      <div className="fcard summary">
+        <div className="badge-icon" aria-hidden="true"><i className="fa-solid fa-check"></i></div>
+        <h2>Booking recorded</h2>
+        {recording.status === 'complete' && <p role="status">Audio recording saved securely.</p>}
+        {recording.status === 'stopped_pending' && <p role="status">The audio recording is queued and will be saved when the connection returns.</p>}
+        <dl>{rows.filter((r) => r[1]).map((r) => <div key={r[0]}><dt>{r[0]}</dt><dd>{r[1]}</dd></div>)}</dl>
+        <div className="actions no-print">
+          <button className="btn-next" onClick={() => window.print()}><i className="fa-solid fa-print"></i><span>Print summary</span></button>
+          <button className="btn-prev" disabled={recording.status === 'stopped_pending'} onClick={onNew}>New visitor</button>
+        </div>
       </div>
     </div>
   );
@@ -1658,7 +1672,7 @@ function App() {
     fees: <FeesSlide cfg={cfg} lead={lead} patch={patch} />, payment: <PaymentSlide cfg={cfg} lead={lead} patch={patch} />,
     terms: <TermsSlide cfg={cfg} lead={lead} patch={patch} mp={mp} />, loan: <LoanSlide cfg={cfg} mp={mp} />,
     docs: <DocsSlide cfg={cfg} lead={lead} patch={patch} />, booking: <BookingSlide cfg={cfg} lead={lead} patch={patch} />,
-    summary: <SummarySlide cfg={cfg} lead={lead} onNew={newVisitor} recording={recording} />,
+    summary: <SummarySlide cfg={cfg} lead={lead} patch={patch} onNew={newVisitor} recording={recording} />,
     hero: <HeroSlide s={s} mp={mp} phase={phase} n={stepNo} />,
   }[s.type] || <GenericSlide s={s} mp={mp} />;
   const stepNo = STEPS.filter((x) => x.phase === s.phase).indexOf(s) + 1;
