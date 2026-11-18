@@ -19,8 +19,20 @@
   </form>
 </section>
 <main id="dashboard" hidden>
-  <header><h1>Magnus management</h1><span id="signed-in-user"></span><a href="/?flow=1" class="btn-link">Counselling flow</a><button id="logout" class="secondary">Sign out</button></header>
-  <nav class="nav" id="main-tabs"></nav>
+  <header class="topbar"><h1>Magnus management</h1><span id="signed-in-user"></span></header>
+  <aside class="rail" id="rail" aria-label="Management menu">
+    <div class="rail-group" id="side-tabs"></div>
+    <span class="rail-sep" id="rail-sep" hidden></span>
+    <a href="/?flow=1" class="rail-btn" aria-label="Counselling flow"><span class="rail-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z"></path></svg><span class="rail-label">Counselling flow</span></span></a>
+    <button id="logout" type="button" class="rail-btn" aria-label="Sign out"><span class="rail-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg><span class="rail-label">Sign out</span></span></button>
+  </aside>
+  <nav class="dock" id="dock" aria-label="Pages and filters">
+    <div class="dock-group" id="main-tabs"></div>
+    <span class="dock-sep" id="dock-sep" hidden></span>
+    <div class="dock-group" id="dock-filters" role="group" aria-label="Filter by status" hidden></div>
+  </nav>
+  <div class="watermark" aria-hidden="true">Data Analyst Team<br>Magnus</div>
+  <div class="stage">
   <p id="notice" class="notice" hidden></p>
   <section id="reports-panel" class="wrap plain" hidden><div id="reports-root"></div></section>
   <section id="leads-panel" class="wrap" hidden>
@@ -28,6 +40,7 @@
     <div id="leads-empty" class="empty" hidden>No visitors found.</div>
     <table id="leads-table" hidden><thead><tr id="leads-head"></tr></thead><tbody></tbody></table>
   </section>
+  <section id="records-panel" class="wrap plain" hidden><div id="records-root"></div></section>
   <section id="users-panel" class="wrap" hidden>
     <div class="toolbar">
       <label class="search">Search name or mobile<input id="user-search" type="search" placeholder="Search users"></label>
@@ -40,6 +53,7 @@
     <table id="users-table" hidden><thead><tr><th>Name</th><th>Mobile</th><th>Role</th><th>Branch</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead><tbody></tbody></table>
   </section>
   <section id="audit-panel" class="wrap" hidden><h2>Audit log</h2><div id="audit-list" class="audit-list"></div></section>
+  </div>
 </main>
 <dialog id="user-dialog">
   <div class="dialog-head"><h2 id="user-dialog-title">Add user</h2><button type="button" class="secondary" data-close="user-dialog">Close</button></div>
@@ -138,31 +152,54 @@ function roleOptions(){
   if(has(PERMISSION.userAddDeveloper)&&has(PERMISSION.userManageDeveloper))options.push(['developer','Developer']);
   return options;
 }
+const RAIL_ICONS={
+  users:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+  audit:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h6"></path></svg>',
+  roles:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'
+};
 let reportsReady=false;
 function startDashboard(){
-  if(!reportsReady){MagnusReports.init({api,esc,root:$('#reports-root'),onError:error=>showNotice(error.message,true)});reportsReady=true;}
+  if(!reportsReady){MagnusReports.init({api,esc,root:$('#reports-root'),filtersRoot:$('#dock-filters'),onError:error=>showNotice(error.message,true)});reportsReady=true;}
   setVisible('#login-panel',false);setVisible('#dashboard',true);
   $('#signed-in-user').textContent=`${state.user.name} · ${state.user.role_name}${state.user.branch_name?` · ${state.user.branch_name}`:''}`;
   const tabs=[];
-  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['reports','Reports','#reports-panel']);
-  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll))tabs.push(['leads','Visitors','#leads-panel']);
-  if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))tabs.push(['users','Users','#users-panel']);
-  if(has(PERMISSION.rolesView))tabs.push(['audit','Audit log','#audit-panel']);
-  $('#main-tabs').innerHTML=tabs.map(([key,label])=>`<button data-panel="${key}" class="${key===tabs[0][0]?'active':''}">${label}</button>`).join('')+
-    (has(PERMISSION.rolesView)?'<button id="open-roles" class="secondary">Roles &amp; permissions</button>':'');
-  $('#main-tabs').addEventListener('click',event=>{
+  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['reports','Reports','dock']);
+  if(has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['branches','Branches','dock']);
+  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll))tabs.push(['leads','Visitors','dock']);
+  if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))tabs.push(['users','Users','rail']);
+  if(has(PERMISSION.rolesView))tabs.push(['audit','Audit log','rail']);
+  const tabButton=([key,label,place])=>place==='rail'
+    ?`<button type="button" data-panel="${key}" class="rail-btn ${key===tabs[0][0]?'active':''}" aria-label="${label}"><span class="rail-pill">${RAIL_ICONS[key]}<span class="rail-label">${label}</span></span></button>`
+    :`<button type="button" data-panel="${key}" class="${key===tabs[0][0]?'active':''}">${label}</button>`;
+  $('#main-tabs').innerHTML=tabs.filter(tab=>tab[2]==='dock').map(tabButton).join('');
+  $('#side-tabs').innerHTML=tabs.filter(tab=>tab[2]==='rail').map(tabButton).join('')+
+    (has(PERMISSION.rolesView)?`<button type="button" id="open-roles" class="rail-btn" aria-label="Roles and permissions"><span class="rail-pill">${RAIL_ICONS.roles}<span class="rail-label">Roles &amp; permissions</span></span></button>`:'');
+  setVisible('#rail-sep',!!$('#side-tabs').children.length);
+  setVisible('#dock',!!tabs.some(tab=>tab[2]==='dock'));
+  const showPanel=key=>{
+    document.querySelectorAll('#main-tabs [data-panel], #side-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item.dataset.panel===key));
+    const target=key==='branches'?'reports':key;
+    for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,target===panel);
+    setVisible('#records-panel',key==='leads'&&state.user.role==='developer');
+    document.body.classList.toggle('fit',key==='reports');
+    const filters=key==='reports'||key==='branches';
+    setVisible('#dock-filters',filters);setVisible('#dock-sep',filters&&!!$('#main-tabs').children.length);
+  };
+  const navigate=event=>{
     const button=event.target.closest('[data-panel]');if(!button)return;
-    document.querySelectorAll('#main-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item===button));
-    for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,button.dataset.panel===panel);
-    if(button.dataset.panel==='reports')MagnusReports.load();
-    if(button.dataset.panel==='leads')loadLeads();
+    showPanel(button.dataset.panel);
+    if(button.dataset.panel==='reports')MagnusReports.load('overview');
+    if(button.dataset.panel==='branches')MagnusReports.load('branches');
+    if(button.dataset.panel==='leads')loadLeadsPage();
     if(button.dataset.panel==='users')loadUsers();
     if(button.dataset.panel==='audit')loadAudit();
-  });
+  };
+  $('#main-tabs').onclick=navigate;$('#side-tabs').onclick=navigate;
   $('#open-roles')?.addEventListener('click',openRoles);
-  for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,tabs[0]?.[0]===panel);
-  if(tabs[0]?.[0]==='reports')MagnusReports.load();
-  if(tabs[0]?.[0]==='leads')loadLeads();
+  showPanel(tabs[0]?.[0]);
+  if(tabs[0]?.[0]==='reports')MagnusReports.load('overview');
+  if(tabs[0]?.[0]==='branches')MagnusReports.load('branches');
+  if(tabs[0]?.[0]==='leads')loadLeadsPage();
   if(tabs[0]?.[0]==='users')loadUsers();
   if(tabs[0]?.[0]==='audit')loadAudit();
   if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))initializeUserFilters();
@@ -274,6 +311,10 @@ $('#users-table tbody').addEventListener('click',async event=>{
   try{await api(endpoints[button.dataset.action][1],{method:endpoints[button.dataset.action][0]});showNotice('User status updated.');loadUsers();}
   catch(error){showNotice(error.message,true);}
 });
+function loadLeadsPage(){
+  loadLeads();
+  if(state.user.role==='developer')MagnusReports.records($('#records-root'));
+}
 async function loadLeads(){
   const canListen=has(PERMISSION.recordingListen);
   $('#leads-head').innerHTML='<th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Status</th><th>Updated</th><th>Photo</th>'+(canListen?'<th>Recording</th>':'');
