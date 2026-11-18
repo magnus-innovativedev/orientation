@@ -216,7 +216,7 @@ const SLIDES = [
     banner: { t: 'Age comparison', d: 'Mentally · Physically · Financially', slot: 'growth-banner' }, cards: [
       card('Age 18', 'Job', null, { icon: 'fa-briefcase' }),
       card('Age 20', '₹20,000 / ₹40,000 · Car', null, { icon: 'fa-car' }),
-      card('Age 23', 'Marriage', null, { icon: 'fa-ring' })] },
+      card('Age 23', 'Marriage', null, { icon: 'diamond-ring' })] },
 
   { key: 'compare', phase: 'fees', type: 'compare', title: 'Why Laptop?' },
   { key: 'fees', phase: 'fees', type: 'fees', title: 'Choose your course' },
@@ -226,6 +226,7 @@ const SLIDES = [
   { key: 'docs', phase: 'fees', type: 'docs', title: 'Documents Required' },
 
   { key: 'booking', phase: 'booking', type: 'booking', title: 'Batch Assignment' },
+  { key: 'student-photo', phase: 'booking', type: 'student-photo', title: 'Student photo' },
   { key: 'summary', phase: 'booking', type: 'summary', title: 'Summary' },
 ];
 
@@ -474,7 +475,17 @@ function GenericSlide({ s, mp }) {
         {s.cards.map((k, i) => (
           <article className={`fcard ${s.rows ? 'row' : ''} ${k.icon ? 'career-growth-card' : ''}`} key={i}>
             {k.n && <span className="num">{k.n}</span>}
-            {k.icon && <span className="career-growth-icon" aria-hidden="true"><i className={`fa-solid ${k.icon}`}></i></span>}
+            {k.icon && <span className="career-growth-icon" aria-hidden="true">
+              {k.icon === 'diamond-ring'
+                ? <svg width="36" height="42" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16 27 7h10l6 9-11 7-11-7Z" />
+                    <path d="M21 16h22M27 7l5 16 5-16M32 23v4" />
+                    <path d="M20 31 27 23m10 0 7 8" />
+                    <ellipse cx="32" cy="42" rx="14" ry="15" />
+                    <ellipse cx="32" cy="42" rx="10.5" ry="11.5" />
+                  </svg>
+                : <i className={`fa-solid ${k.icon}`}></i>}
+            </span>}
             {!s.rows && k.m && <MediaSlot {...mp} slot={`${s.key}-${i}`} kind={k.m} label={k.t} />}
             <div className="ftext">
               <h3>{k.t}{k.tag && <em className="chip tag">{k.tag}</em>}</h3>
@@ -1032,7 +1043,7 @@ function BookingSlide({ cfg, lead, patch }) {
   );
 }
 
-function SummarySlide({ cfg, lead, patch, onNew, recording }) {
+function SummarySlide({ cfg, lead, onNew, recording }) {
   const c = cfg.courses[lead.course] || {};
   const missing = cfg.documents.filter((d) => !(lead.docs || {})[d.key]).map((d) => d.label);
   const payLabel = { cash: 'Cash', loan: 'Pure loan', mix: 'Loan + cash' }[lead.payment];
@@ -1041,18 +1052,15 @@ function SummarySlide({ cfg, lead, patch, onNew, recording }) {
     ['Payment', payLabel], ['Booking amount', lead.booking_amount && inr(lead.booking_amount)], ['Batch', lead.batch],
     ['Documents pending', missing.length ? missing.join(', ') : 'None']];
   return (
-    <div className="fgrid summary-layout" style={{ '--cols': 2 }}>
-      <StudentPhotoSlide lead={lead} patch={patch} />
-      <div className="fcard summary">
-        <div className="badge-icon" aria-hidden="true"><i className="fa-solid fa-check"></i></div>
-        <h2>Booking recorded</h2>
-        {recording.status === 'complete' && <p role="status">Audio recording saved securely.</p>}
-        {recording.status === 'stopped_pending' && <p role="status">The audio recording is queued and will be saved when the connection returns.</p>}
-        <dl>{rows.filter((r) => r[1]).map((r) => <div key={r[0]}><dt>{r[0]}</dt><dd>{r[1]}</dd></div>)}</dl>
-        <div className="actions no-print">
-          <button className="btn-next" onClick={() => window.print()}><i className="fa-solid fa-print"></i><span>Print summary</span></button>
-          <button className="btn-prev" disabled={recording.status === 'stopped_pending'} onClick={onNew}>New visitor</button>
-        </div>
+    <div className="fcard summary">
+      <div className="badge-icon" aria-hidden="true"><i className="fa-solid fa-check"></i></div>
+      <h2>Booking recorded</h2>
+      {recording.status === 'complete' && <p role="status">Audio recording saved securely.</p>}
+      {recording.status === 'stopped_pending' && <p role="status">The audio recording is queued and will be saved when the connection returns.</p>}
+      <dl>{rows.filter((r) => r[1]).map((r) => <div key={r[0]}><dt>{r[0]}</dt><dd>{r[1]}</dd></div>)}</dl>
+      <div className="actions no-print">
+        <button className="btn-next" onClick={() => window.print()}><i className="fa-solid fa-print"></i><span>Print summary</span></button>
+        <button className="btn-prev" disabled={recording.status === 'stopped_pending'} onClick={onNew}>New visitor</button>
       </div>
     </div>
   );
@@ -1672,7 +1680,8 @@ function App() {
     fees: <FeesSlide cfg={cfg} lead={lead} patch={patch} />, payment: <PaymentSlide cfg={cfg} lead={lead} patch={patch} />,
     terms: <TermsSlide cfg={cfg} lead={lead} patch={patch} mp={mp} />, loan: <LoanSlide cfg={cfg} mp={mp} />,
     docs: <DocsSlide cfg={cfg} lead={lead} patch={patch} />, booking: <BookingSlide cfg={cfg} lead={lead} patch={patch} />,
-    summary: <SummarySlide cfg={cfg} lead={lead} patch={patch} onNew={newVisitor} recording={recording} />,
+    'student-photo': <StudentPhotoSlide lead={lead} patch={patch} />,
+    summary: <SummarySlide cfg={cfg} lead={lead} onNew={newVisitor} recording={recording} />,
     hero: <HeroSlide s={s} mp={mp} phase={phase} n={stepNo} />,
   }[s.type] || <GenericSlide s={s} mp={mp} />;
   const stepNo = STEPS.filter((x) => x.phase === s.phase).indexOf(s) + 1;
