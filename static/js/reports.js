@@ -2,11 +2,24 @@
    Developer: data checks + all records. Admin: all branches. Branch-scoped users: their own branch. */
 (function () {
   'use strict';
-  const C = { coral: '#33261F', teal: '#2E8F7B', amber: '#A8947F', leather: '#6B5B52', sand: '#CDBFAE' };
+  const C = { coral: 'var(--mocha-brown)', teal: 'var(--mocha-teal)', amber: 'var(--mocha-tan)', leather: 'var(--mocha-muted-brown)', sand: 'var(--mocha-tan)', rust: 'var(--mocha-rust)', ink: 'var(--mocha-ink)', booked: 'var(--mocha-booked)' };
   const VIEW_NAMES = { developer: 'Developer', admin: 'Admin', branch_manager: 'Branch Manager' };
+  const SOUND_PREFERENCE_KEY = 'dashboard-sound-enabled';
+  const SOUND_ON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"></path></svg>';
+  const SOUND_OFF_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="m16 9 5 6m0-6-5 6"></path></svg>';
+  const FILTERS = [
+    ['all', 'All visitors', '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M22 11h-6"></path></svg>'],
+    ['booked', 'Booked', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18M8 15l2.5 2.5L16 12"></path></svg>'],
+    ['open', 'In progress', '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>'],
+  ];
   let esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let apiGet = null, onError = () => {};
-  let root = null, filtersRoot = null, DATA = null, ALL = [], view = 'developer', views = [], status = 'all', section = 'overview';
+  let apiGet = null, onError = () => {}, onDashboard = () => {}, onStatus = () => {};
+  let root = null, headerRoot = null, viewsRoot = null, filtersRoot = null, DATA = null, ALL = [], view = 'developer', views = [], status = 'all', section = 'overview', recordsView = false;
+  let branchFilter = '', branchOptions = [], branchDropdownOpen = false, branchActiveIndex = 0, branchTypeahead = '', branchTypeaheadTimer = null;
+  let soundEnabled = true;
+  try { soundEnabled = localStorage.getItem(SOUND_PREFERENCE_KEY) !== 'false'; }
+  catch (error) { console.error('Could not read the sound preference.', error); }
+  window.magnusSoundEnabled = soundEnabled;
 
   const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
   const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '0%');
@@ -25,42 +38,45 @@
       const f = d[1] / tot, b = a + Math.min(f, 0.9999) * 2 * Math.PI, l = f > 0.5 ? 1 : 0;
       const p = (ang, rad) => [80 + rad * Math.cos(ang), 80 + rad * Math.sin(ang)];
       const [x1, y1] = p(a, R), [x2, y2] = p(b, R), [x3, y3] = p(b, r), [x4, y4] = p(a, r);
-      out += `<path class="seg" data-k="${ci}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> (${(f * 100).toFixed(1)}%)" data-pc="${Math.round(f * 100)}%" d="M${x1} ${y1}A${R} ${R} 0 ${l} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${l} 0 ${x4} ${y4}Z" fill="${colors[ci]}" stroke="#F3EAE5" stroke-width="2"/>`;
+      out += `<path class="seg" data-k="${ci}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> (${(f * 100).toFixed(1)}%)" data-pc="${Math.round(f * 100)}%" d="M${x1} ${y1}A${R} ${R} 0 ${l} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${l} 0 ${x4} ${y4}Z" fill="${colors[ci]}" stroke="#FFFFFF" stroke-width="3"/>`;
       a = b;
     });
-    return `<svg class="dn" viewBox="0 0 160 160" width="150" role="img" aria-label="Donut chart"><circle cx="80" cy="80" r="74" fill="none" stroke="#E4D9D2" stroke-width="5" opacity=".7"/><g>${out}</g><text class="cv" x="80" y="80" text-anchor="middle" style="font:700 24px Lora,Georgia,serif;fill:#2B1F1B">${center}</text><text class="cu" x="80" y="97" text-anchor="middle">${unit}</text></svg>`;
+    return `<svg class="dn" viewBox="0 0 160 160" width="150" role="img" aria-label="Donut chart"><g>${out}</g><text class="cv" x="80" y="80" text-anchor="middle" style="font:700 24px Outfit,Arial,sans-serif;fill:#2A1D17">${center}</text><text class="cu" x="80" y="97" text-anchor="middle" style="fill:#8A7A70">${unit}</text></svg>`;
   }
   const legend = (data, colors) => `<div class="legend" style="flex-direction:column;gap:8px">${data.map((d, i) => `<span class="lg" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b>"><i style="background:${colors[i]}"></i>${esc(d[0])} · <b style="color:var(--ink)">${d[1]}</b></span>`).join('')}</div>`;
   function hbars(data, color, max, fmt) {
     fmt = fmt || ((v) => v);
     if (!data.length) return '<div class="empty">No data in this view</div>';
     max = max || Math.max(...data.map((d) => d[1]), 1);
-    const W = 420, rowH = 30, h = data.length * rowH + 4, lw = 112;
+    const W = 420, rowH = 30, h = data.length * rowH + 4, lw = 112, trackW = W - lw - 78;
     return `<svg viewBox="0 0 ${W} ${h}" width="100%" role="img">${data.map((d, i) => {
-      const y = i * rowH + 4, w = d[1] ? Math.max(6, (W - lw - 62) * d[1] / max) : 0;
-      return `<g class="row" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${fmt(d[1])}</b>"><rect x="0" y="${y - 2}" width="${W}" height="${rowH - 2}" fill="transparent"/><text x="0" y="${y + 16}">${esc(d[0])}</text><rect x="${lw}" y="${y + 3}" width="${W - lw - 62}" height="16" rx="8" fill="#E4D9D2"/>${w ? `<rect class="hb" style="animation-delay:${0.35 + i * 0.05}s" x="${lw}" y="${y + 3}" width="${w}" height="16" rx="8" fill="${d[2] || color}"/>` : ''}<text x="${lw + w + 8}" y="${y + 16}" style="fill:#2B1F1B;font-weight:700">${fmt(d[1])}</text></g>`;
+      const y = i * rowH + 4, w = d[1] ? Math.max(4, trackW * d[1] / max) : 0;
+      const outlier = d[1] > max ? ' *' : '';
+      return `<g class="row" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${fmt(d[1])}</b>"><rect x="0" y="${y - 2}" width="${W}" height="${rowH - 2}" fill="transparent"/><text x="0" y="${y + 16}">${esc(d[0])}</text><rect x="${lw}" y="${y + 8}" width="${trackW}" height="10" rx="5" fill="#E4D9D0"/><rect class="hb" style="animation-delay:${0.35 + i * 0.05}s" x="${lw}" y="${y + 8}" width="${w ? Math.min(w, trackW) : 0}" height="10" rx="5" fill="${d[2] || color}"/><text x="${W - 16}" y="${y + 16}" text-anchor="end" style="fill:#2A1D17;font-weight:700">${fmt(d[1])}${outlier}</text></g>`;
     }).join('')}</svg>`;
   }
   function vbars(data, color) {
     const W = 420, H = 190, base = 150, max = Math.max(...data.map((d) => d[1]), 1), n = data.length;
     const bw = Math.min(54, (W - 20) / n - 12), gap = (W - n * bw) / (n + 1);
     let g = '';
-    (max < 2 ? [0, 1] : [0, 0.5, 1]).forEach((f) => { const y = base - f * 120; g += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#D9CCC4" stroke-dasharray="3 4"/><text x="0" y="${y - 4}">${Math.round(max * f)}</text>`; });
     data.forEach((d, i) => {
       const x = gap + i * (bw + gap), h = d[1] / max * 120;
-      g += `<g class="col" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${base - h}" width="${bw}" height="${h ? Math.max(h, 2) : 0}" rx="10" fill="${color}"/><text x="${x + bw / 2}" y="${base - h - 6}" text-anchor="middle" style="fill:#2B1F1B;font-weight:700">${d[1]}</text><text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:10px">${esc(d[0])}</text></g>`;
+      const barColor = d[1] === 0 ? C.sand : d[1] === max ? C.coral : C.amber;
+      g += `<g class="col" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="${barColor}"/><text x="${x + bw / 2}" y="${base - h - 7}" text-anchor="middle" style="fill:#2A1D17;font-weight:700">${d[1]}</text><text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:10px;fill:#8A7A70">${esc(d[0])}</text></g>`;
     });
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">${g}</svg>`;
   }
   function funnel(steps) {
     if (!steps[0][1]) return '<div class="empty">No visitors in this view</div>';
-    const W = 420, max = steps[0][1], cols = [C.leather, C.amber, C.coral, C.teal];
+    const W = 420, max = steps[0][1], cols = [C.teal, C.rust, C.ink, C.booked];
     return `<svg viewBox="0 0 ${W} ${steps.length * 46}" width="100%" role="img">${steps.map((s, i) => {
       const w = Math.max(60, (W - 20) * s[1] / max), x = (W - w) / 2, y = i * 46;
       return `<g class="stp" data-k="${i}" data-t="${esc(s[0])}" data-v="<b>${s[1]}</b> (${Math.round(s[1] / max * 100)}% of registered)"><rect class="fb" style="animation-delay:${0.4 + i * 0.12}s" x="${x}" y="${y + 4}" width="${w}" height="36" rx="12" fill="${cols[i % 4]}"/><text x="${W / 2}" y="${y + 27}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:13px">${s[0]} · ${s[1]}</text></g>`;
     }).join('')}</svg>`;
   }
-  const tile = (cls, l, v, n) => `<div class="tile raised ${cls}"><span class="label">${l}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
+  const tile = (cls, l, v, n, reportStatus) => reportStatus
+    ? `<button type="button" class="tile raised ${cls}" data-report-status="${reportStatus}" aria-label="View ${l.toLowerCase()} visitor report"><span class="label">${l}</span><span class="v">${v}</span><span class="n">${n}</span></button>`
+    : `<div class="tile raised ${cls}"><span class="label">${l}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
   const panel = (span, t, s, body) => `<section class="panel raised ${span}"><div><h3>${t}</h3>${s ? `<div class="sub">${s}</div>` : ''}</div>${body}</section>`;
   const well = (b) => `<div class="well chart">${b}</div>`;
   const flag = (h, t) => `<div class="flag well"><span class="screw"></span><div><b>${h}</b> ${t}</div></div>`;
@@ -71,10 +87,10 @@
     const b = rows.filter((v) => v.s === 'booked'), open = rows.length - b.length, val = b.reduce((s, v) => s + (v.am || 0), 0);
     const bm = b.map((v) => v.mins), avg = bm.length ? Math.round(bm.reduce((a, c) => a + c, 0) / bm.length) : 0;
     return `<div class="tiles">
-      ${tile('coral', 'Visitors', rows.length, 'Registered in this view')}
-      ${tile('teal', 'Booked', b.length, pct(b.length, rows.length) + ' of visitors')}
-      ${tile('', 'In progress', open, 'Can resume on the same device')}
-      ${tile('', 'Booking value', inr(val), b.length ? 'Average ' + inr(Math.round(val / b.length)) + ' per booking' : 'No bookings')}
+      ${tile('', 'Visitors', rows.length, 'Registered in this view', 'all')}
+      ${tile('', 'Booked', b.length, pct(b.length, rows.length) + ' of visitors', 'booked')}
+      ${tile('', 'In progress', open, 'Can resume on the same device', 'open')}
+      ${tile('booking-value', 'Booking value', inr(val), b.length ? 'Average ' + inr(Math.round(val / b.length)) + ' per booking' : 'No bookings')}
       ${tile('', 'Avg time to book', avg + ' min', 'Registration to last update, booked visitors')}
     </div>`;
   }
@@ -83,7 +99,7 @@
     return panel(span || 'c5', 'Visitor funnel', 'How far visitors got in the counselling flow', well(funnel(st)));
   }
   function dayPanel(rows, span) {
-    const MAX = 14, m = count(rows, (v) => v.day), end = new Date(DATA.today + 'T00:00');
+    const MAX = 14, m = count(rows, (v) => v.day), end = new Date((document.querySelector('#report-date-filter')?.value || DATA.today) + 'T00:00');
     const firstDay = ALL.length ? ALL.reduce((a, v) => (v.day < a ? v.day : a), ALL[0].day) : DATA.today;
     const span_ = Math.min(MAX, Math.max(1, Math.round((end - new Date(firstDay + 'T00:00')) / 864e5) + 1)), data = [];
     for (let i = span_ - 1; i >= 0; i--) {
@@ -101,17 +117,22 @@
     const order = ['10th / SSLC', '12th / Plus Two', 'Diploma', 'Degree'], m = count(rows, (v) => v.q || 'Not recorded');
     const known = new Set(order);
     const extra = [...m.keys()].filter((k) => k !== 'Not recorded' && !known.has(k));
-    const data = [...order, ...extra, 'Not recorded'].map((k) => [k, m.get(k) || 0, k === 'Not recorded' ? C.sand : null]);
+    const qualificationColors = [C.leather, C.rust, C.ink, C.sand];
+    const data = [...order, ...extra, 'Not recorded'].map((k, i) => [k, m.get(k) || 0, k === 'Not recorded' ? C.sand : qualificationColors[i] || C.leather]);
     return panel(span || 'c4', 'Qualification', 'Highest qualification entered at registration', well(hbars(data, C.leather)));
   }
   function amountPanel(rows, span) {
-    const m = count(rows.filter((v) => v.am), (v) => v.am), data = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([k, n]) => [inr(k), n]);
+    const m = count(rows.filter((v) => v.am), (v) => v.am), amountColors = [C.teal, C.rust, C.ink];
+    const data = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([k, n], i) => [inr(k), n, amountColors[i % amountColors.length]]);
     return panel(span || 'c4', 'Booking amounts', 'Bookings at each amount, batch ' + (rows.find((v) => v.ba)?.ba || 'not set'), well(hbars(data, C.teal)));
   }
   function timePanel(rows, span) {
     const LIMIT = 6, recent = [...rows].sort((a, b) => b.u.localeCompare(a.u)).slice(0, LIMIT);
     const data = recent.map((v) => [v.nm + ' · ' + v.n, v.mins, v.s === 'booked' ? C.teal : C.amber]);
-    return panel(span || 'c8', 'Time spent per visitor', 'Minutes between registration and last update, latest ' + LIMIT + '. Teal is booked, sand is still open.', well(hbars(data, C.amber, null, (v) => v + ' min')));
+    const values = data.map((d) => d[1]).sort((a, b) => a - b);
+    const percentileIndex = Math.max(0, Math.ceil(values.length * 0.9) - 1);
+    const axisMax = Math.max(1, values[percentileIndex] || 1);
+    return panel(span || 'c8', 'Time spent per visitor', 'Minutes between registration and last update, latest ' + LIMIT + '. Teal is booked, sand is still open.', well(hbars(data, C.amber, axisMax, (v) => v + ' min')));
   }
   function tablePanel(rows, title, sub, showStep) {
     const list = [...rows].sort((a, b) => b.c.localeCompare(a.c));
@@ -121,67 +142,74 @@
     }).join('')}</tbody></table></div>` : '<div class="well empty">No visitors in this view</div>';
     return panel('c12', title, sub, body);
   }
-  function followUp(rows, span) {
-    const open = rows.filter((v) => v.s !== 'booked').sort((a, b) => (!!b.pa - !!a.pa) || (!!b.co - !!a.co) || b.u.localeCompare(a.u));
-    const allHot = open.filter((v) => v.co || v.pa), hot = allHot.slice(0, 3), more = allHot.length - hot.length, cold = open.length - allHot.length;
-    const body = hot.length ? `<div class="stack">${hot.map((v) => flag(esc(v.nm) + ' (' + v.n + ') chose ' + [v.co && cap(v.co), v.pa && cap(v.pa) + ' payment'].filter(Boolean).join(' with '), 'and stopped at step ' + v.st + '. Last active ' + fmtDT(v.u) + '.')).join('')}${more > 0 ? `<div class="sub">+${more} more open visitors</div>` : ''}</div>` : '<div class="well empty">No open visitors have chosen a course yet</div>';
-    return panel(span || 'c12', 'Follow up first', 'Open visitors who already picked a course or payment route. ' + cold + ' more registered visitors have not picked either.', body);
-  }
   function branchTable(rows) {
-    const TODAY = DATA.today;
+    const TODAY = document.querySelector('#report-date-filter')?.value || DATA.today;
     const amt = (list, today) => list.filter((v) => v.s === 'booked' && (!today || v.u.slice(0, 10) === TODAY)).reduce((s, v) => s + (v.am || 0), 0);
     const line = (name, list) => { const t = list.filter((v) => v.day === TODAY).length; return `<tr><td><b>${esc(name)}</b></td><td class="num">${t ? `<span class="chip ok">${t}</span>` : '0'}</td><td class="num">${list.length}</td><td class="num">${inr(amt(list, true))}</td><td class="num">${inr(amt(list, false))}</td></tr>`; };
     const known = new Set(DATA.branches.map((b) => b.id));
     const body = DATA.branches.map((b) => line(b.name, rows.filter((v) => v.br === b.id))).join('') + line('No branch saved', rows.filter((v) => !v.br || !known.has(v.br)));
     const tt = rows.filter((v) => v.day === TODAY).length;
-    return panel('c12', 'Visits by branch', 'Today is ' + fmtDay(TODAY) + ' ' + TODAY.slice(0, 4) + '. Visits are visitor sessions registered. Booking amount counts booked visitors, and today\'s amount uses the day of the last update.', `<div class="scroll"><table style="min-width:560px"><thead><tr><th>Branch name</th><th class="num">Today visit</th><th class="num">Total visit</th><th class="num">Today booking amount</th><th class="num">Total booking amount</th></tr></thead><tbody>${body}<tr><td><b>All branches</b></td><td class="num"><b>${tt}</b></td><td class="num"><b>${rows.length}</b></td><td class="num"><b>${inr(amt(rows, true))}</b></td><td class="num"><b>${inr(amt(rows, false))}</b></td></tr></tbody></table></div>`);
+    return panel('c12', 'Visits by branch', 'Selected report date: ' + fmtDay(TODAY) + ' ' + TODAY.slice(0, 4) + '. Totals include visitors registered on or before that date.', `<div class="scroll"><table style="min-width:560px"><thead><tr><th>Branch name</th><th class="num">Visits on selected date</th><th class="num">Total visits</th><th class="num">Booking amount on selected date</th><th class="num">Total booking amount</th></tr></thead><tbody>${body}<tr><td><b>All branches</b></td><td class="num"><b>${tt}</b></td><td class="num"><b>${rows.length}</b></td><td class="num"><b>${inr(amt(rows, true))}</b></td><td class="num"><b>${inr(amt(rows, false))}</b></td></tr></tbody></table></div>`);
   }
-  function branchPanel(rows) {
+  function branchPanel(rows, span) {
     const nb = rows.filter((v) => !v.br).length;
     const per = DATA.branches.map((b) => [b.name, rows.filter((v) => v.br === b.id).length]).filter((d) => d[1] > 0).sort((a, b) => b[1] - a[1]);
     const data = [['No branch', nb, C.coral], ...per.slice(0, 4)];
     const rest = per.slice(4).reduce((s, d) => s + d[1], 0);
     if (rest) data.push(['Other branches', rest]);
-    return panel('c6', 'Visitors by branch', 'Branch saved on the visitor record',
+    return panel(span || 'c6', 'Visitors by branch', 'Branch saved on the visitor record',
       well(hbars(data, C.teal, rows.length || 1)) + (nb ? `<div class="sub">${nb} visitors cannot be reported by branch until a branch is saved with them.</div>` : ''));
   }
 
   /* ---------- role views ---------- */
   const COMPL = (rows) => { const n = rows.length, f = (label, k) => [label, rows.filter(k).length, n]; return [f('Qualification', (v) => v.q), f('Place', (v) => v.pl), f('Course', (v) => v.co), f('Payment', (v) => v.pa), f('Batch', (v) => v.ba), f('Branch', (v) => v.br)]; };
-  const COURSE = [C.coral, C.teal], PAY = [C.amber, C.coral, C.teal];
+  const VIEW_CARD_CONFIG = {
+    admin: {
+      row2: ['visitor-funnel', 'visitors-by-day', 'visitors-by-branch'],
+      row3: ['course-choice', 'payment-route', 'booking-amounts', 'qualification'],
+    },
+    developer: {
+      row2: ['field-completeness', 'data-checks', 'visitor-funnel'],
+      row3: ['visitors-by-day', 'time-spent', 'course-choice'],
+    },
+  };
   const V = {};
-  V.developer = (rows) => {
+  function cardById(id, rows) {
     const comp = COMPL(rows), bookedLow = rows.filter((v) => v.s === 'booked' && v.st < 5), noBranch = rows.filter((v) => !v.br).length;
     const recs = rows.reduce((s, v) => s + v.rec, 0), withRec = rows.filter((v) => v.rec).length;
     const steps = rows.map((v) => v.st), lo = steps.length ? Math.min(...steps) : 0, hi = steps.length ? Math.max(...steps) : 0;
-    return kpis(rows) + `<div class="grid fit">
-      ${panel('c6', 'Field completeness', 'Visitors with each field filled in', well(hbars(comp.map((c) => [c[0], c[1], c[1] === 0 && c[2] ? C.coral : null]), C.teal, rows.length || 1, (v) => v + ' / ' + rows.length)))}
-      ${panel('c6', 'Data checks', 'Things to confirm in the visitor records', `<div class="stack">
+    switch (id) {
+      case 'field-completeness':
+        return panel('c12', 'Field completeness', 'Visitors with each field filled in', well(hbars(comp.map((c) => [c[0], c[1], c[1] === 0 ? C.rust : c[1] === c[2] ? C.teal : c[1] / c[2] >= .5 ? C.coral : C.rust]), C.teal, rows.length || 1, (v) => v + ' / ' + rows.length)));
+      case 'data-checks':
+        return panel('c12', 'Data checks', 'Things to confirm in the visitor records', `<div class="stack">
         ${flag(noBranch + ' of ' + rows.length + ' visitors have no branch.', 'Branch-scoped reports and visitor lists only include visitors saved with a branch.')}
         ${flag(bookedLow.length + ' booked visitors saved a step below 5.', 'Saved step ranges from ' + lo + ' to ' + hi + '. Confirm that booking resets the saved step, or the funnel cannot use it as a progress measure.')}
         ${flag(recs + ' recordings link to ' + withRec + ' visitor' + (withRec === 1 ? '' : 's') + '.', 'Visitors without a linked recording: ' + (rows.length - withRec) + '.')}
-      </div>`)}
-      ${funnelPanel(rows, 'c5')}${dayPanel(rows, 'c7')}
-      ${timePanel(rows, 'c7')}
-      ${mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, COURSE, ['laptop', 'smartphone'], 'c5')}
-    </div>`;
-  };
-  V.admin = (rows) => kpis(rows) + `<div class="grid fit g8">
-      ${funnelPanel(rows, 'c5')}${dayPanel(rows, 'c7')}
-      ${mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, COURSE, ['laptop', 'smartphone'])}
-      ${mixPanel(rows, 'Payment route', 'Visitors who chose a route', (v) => v.pa, PAY, ['mix', 'cash', 'loan'])}
-      ${qualPanel(rows)}
-      ${amountPanel(rows, 'c6')}
-      ${branchPanel(rows)}
-      ${followUp(rows)}
-    </div>`;
+      </div>`);
+      case 'visitor-funnel': return funnelPanel(rows, 'c12');
+      case 'visitors-by-day': return dayPanel(rows, 'c12');
+      case 'visitors-by-branch': return branchPanel(rows, 'c12');
+      case 'course-choice': return mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, [C.ink, C.teal], ['laptop', 'smartphone'], 'c12');
+      case 'payment-route': return mixPanel(rows, 'Payment route', 'Visitors who chose a route', (v) => v.pa, [C.coral, C.amber, C.teal], ['mix', 'cash', 'loan'], 'c12');
+      case 'booking-amounts': return amountPanel(rows, 'c12');
+      case 'qualification': return qualPanel(rows, 'c12');
+      case 'time-spent': return timePanel(rows, 'c12');
+      default: return '';
+    }
+  }
+  V.admin = (rows) => kpis(rows) + viewGrid(VIEW_CARD_CONFIG.admin, rows);
+  V.developer = (rows) => kpis(rows) + viewGrid(VIEW_CARD_CONFIG.developer, rows);
   V.branch_manager = (rows) => kpis(rows) + `<div class="grid fit">
-      ${followUp(rows)}
       ${funnelPanel(rows, 'c5')}${dayPanel(rows, 'c7')}
-      ${mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, COURSE, ['laptop', 'smartphone'])}
-      ${mixPanel(rows, 'Payment route', 'Visitors who chose a route', (v) => v.pa, PAY, ['mix', 'cash', 'loan'])}
+      ${mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, [C.ink, C.teal], ['laptop', 'smartphone'])}
+      ${mixPanel(rows, 'Payment route', 'Visitors who chose a route', (v) => v.pa, [C.coral, C.amber, C.teal], ['mix', 'cash', 'loan'])}
       ${amountPanel(rows)}
     </div>`;
+  function viewGrid(config, rows) {
+    const row = (ids) => `<div class="dashboard-row row-${ids.length}">${ids.map((id) => cardById(id, rows)).join('')}</div>`;
+    return `<div class="dashboard-grid">${row(config.row2)}${row(config.row3)}</div>`;
+  }
 
   /* ---------- shell ---------- */
   const SUBS = {
@@ -190,18 +218,249 @@
     branch_manager: 'Visitors for your branch and who to call back first.',
   };
   function scoped() {
-    return status === 'all' ? ALL : ALL.filter((v) => (status === 'booked' ? v.s === 'booked' : v.s !== 'booked'));
+    const reportDate = document.querySelector('#report-date-filter')?.value || DATA.today;
+    return ALL.filter((v) => (status === 'all' || (status === 'booked' ? v.s === 'booked' : v.s !== 'booked'))
+      && (!branchFilter || v.br === branchFilter) && v.day <= reportDate);
+  }
+  function setupSoundToggle() {
+    window.magnusSoundEnabled = soundEnabled;
+    let toggle = document.querySelector('#sound-toggle');
+    if (!toggle) {
+      toggle = document.createElement('button');
+      toggle.id = 'sound-toggle';
+      toggle.type = 'button';
+      toggle.className = 'rail-btn';
+      const rail = document.querySelector('#rail');
+      const logout = document.querySelector('#logout');
+      if (logout) logout.before(toggle);
+      else rail?.append(toggle);
+    }
+    const sync = () => {
+      const label = soundEnabled ? 'Sound on' : 'Sound off';
+      const action = soundEnabled ? 'Disable sound' : 'Enable sound';
+      toggle.setAttribute('aria-label', action);
+      toggle.setAttribute('aria-pressed', String(soundEnabled));
+      toggle.title = action;
+      toggle.innerHTML = `<span class="rail-pill">${soundEnabled ? SOUND_ON_ICON : SOUND_OFF_ICON}<span class="rail-label">${label}</span></span>`;
+    };
+    if (toggle.dataset.soundToggleBound !== 'true') {
+      toggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        window.magnusSoundEnabled = soundEnabled;
+        sync();
+        try { localStorage.setItem(SOUND_PREFERENCE_KEY, String(soundEnabled)); }
+        catch (error) { onError(new Error(`Could not save the sound preference: ${error.message}`)); }
+      });
+      toggle.dataset.soundToggleBound = 'true';
+    }
+    sync();
+    const playSound = window.playDockDroplet;
+    if (typeof playSound === 'function' && !playSound.soundPreferenceWrapped) {
+      const soundAwarePlay = function () {
+        if (window.magnusSoundEnabled !== false) playSound();
+      };
+      soundAwarePlay.soundPreferenceWrapped = true;
+      window.playDockDroplet = soundAwarePlay;
+    }
+  }
+  function branchDropdownParts() {
+    return {
+      root: document.querySelector('#report-branch-dropdown'),
+      trigger: document.querySelector('#report-branch-filter'),
+      label: document.querySelector('#report-branch-label'),
+      listbox: document.querySelector('#report-branch-options'),
+    };
+  }
+  function renderBranchOptions(options) {
+    const { label, listbox } = branchDropdownParts();
+    branchOptions = options;
+    if (!listbox) return;
+    const selectedIndex = options.findIndex(([value]) => String(value) === branchFilter);
+    branchActiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
+    listbox.replaceChildren(...options.map(([value, name]) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'branch-filter-option';
+      option.dataset.value = String(value);
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(String(value) === branchFilter));
+      option.tabIndex = String(value) === branchFilter ? 0 : -1;
+      const text = document.createElement('span');
+      text.textContent = name;
+      const check = document.createElement('span');
+      check.className = 'branch-filter-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.textContent = '✓';
+      option.append(text, check);
+      return option;
+    }));
+    if (label) label.textContent = options[selectedIndex < 0 ? 0 : selectedIndex]?.[1] || '';
+  }
+  function focusBranchOption(index) {
+    const { listbox } = branchDropdownParts();
+    const options = listbox ? [...listbox.querySelectorAll('[role="option"]')] : [];
+    if (!options.length) return;
+    branchActiveIndex = (index + options.length) % options.length;
+    options.forEach((option, i) => { option.tabIndex = i === branchActiveIndex ? 0 : -1; });
+    options[branchActiveIndex].focus();
+    options[branchActiveIndex].scrollIntoView({ block: 'nearest' });
+  }
+  function openBranchDropdown() {
+    const { trigger, listbox } = branchDropdownParts();
+    if (!trigger || !listbox || trigger.disabled) return;
+    const selectedIndex = branchOptions.findIndex(([value]) => String(value) === branchFilter);
+    branchActiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
+    listbox.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    focusBranchOption(branchActiveIndex);
+    branchDropdownOpen = true;
+  }
+  function closeBranchDropdown(returnFocus) {
+    const { trigger, listbox } = branchDropdownParts();
+    branchDropdownOpen = false;
+    branchTypeahead = '';
+    clearTimeout(branchTypeaheadTimer);
+    if (listbox) listbox.hidden = true;
+    if (trigger) {
+      trigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) trigger.focus();
+    }
+  }
+  function selectBranch(value) {
+    if (!branchOptions.some(([optionValue]) => String(optionValue) === value)) return;
+    branchFilter = value;
+    renderBranchOptions(branchOptions);
+    closeBranchDropdown(true);
+    window.MagnusReports.load(section);
+  }
+  function jumpToBranchOption(character) {
+    const letter = character.toLocaleLowerCase();
+    branchTypeahead = branchTypeahead === letter ? letter : branchTypeahead + letter;
+    clearTimeout(branchTypeaheadTimer);
+    branchTypeaheadTimer = setTimeout(() => { branchTypeahead = ''; }, 700);
+    const currentLabel = String(branchOptions[branchActiveIndex]?.[1] || '').toLocaleLowerCase();
+    if (branchTypeahead.length > 1 && currentLabel.startsWith(branchTypeahead)) return;
+    for (let offset = 1; offset <= branchOptions.length; offset++) {
+      const index = (branchActiveIndex + offset) % branchOptions.length;
+      if (String(branchOptions[index][1]).toLocaleLowerCase().startsWith(branchTypeahead)) {
+        focusBranchOption(index);
+        return;
+      }
+    }
+  }
+  function upgradeNativeBranchFilter() {
+    const select = document.querySelector('select#report-branch-filter');
+    const oldField = select?.closest('.topbar-field');
+    if (!select || !oldField) return;
+    const field = document.createElement('div');
+    field.className = 'topbar-field';
+    const caption = document.createElement('span');
+    caption.textContent = 'Branch';
+    const dropdown = document.createElement('div');
+    dropdown.id = 'report-branch-dropdown';
+    dropdown.className = 'branch-filter';
+    const trigger = document.createElement('button');
+    trigger.id = 'report-branch-filter';
+    trigger.className = 'branch-filter-trigger';
+    trigger.type = 'button';
+    trigger.setAttribute('aria-label', 'Branch');
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', 'report-branch-options');
+    const label = document.createElement('span');
+    label.id = 'report-branch-label';
+    label.textContent = select.selectedOptions[0]?.textContent || 'All Branches';
+    const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    chevron.setAttribute('viewBox', '0 0 24 24');
+    chevron.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'm6 9 6 6 6-6');
+    chevron.append(path);
+    trigger.append(label, chevron);
+    const listbox = document.createElement('div');
+    listbox.id = 'report-branch-options';
+    listbox.className = 'branch-filter-list';
+    listbox.setAttribute('role', 'listbox');
+    listbox.setAttribute('aria-label', 'Branches');
+    listbox.hidden = true;
+    dropdown.append(trigger, listbox);
+    field.append(caption, dropdown);
+    oldField.replaceWith(field);
+  }
+  function handleBranchDropdownKeydown(event) {
+    const trigger = event.target.closest('#report-branch-filter');
+    const option = event.target.closest('#report-branch-options [role="option"]');
+    if (!trigger && !option) return;
+    if (event.key === 'Escape' && branchDropdownOpen) {
+      event.preventDefault();
+      closeBranchDropdown(true);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const delta = event.key === 'ArrowDown' ? 1 : -1;
+      if (!branchDropdownOpen) {
+        openBranchDropdown();
+        if (event.key === 'ArrowUp') focusBranchOption(branchActiveIndex - 1);
+      } else {
+        focusBranchOption(branchActiveIndex + delta);
+      }
+      return;
+    }
+    if (option && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      selectBranch(option.dataset.value);
+      return;
+    }
+    if (event.key.length === 1 && event.key !== ' ' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      if (!branchDropdownOpen) openBranchDropdown();
+      jumpToBranchOption(event.key);
+    }
+  }
+  function syncTopbar() {
+    if (!DATA) return;
+    document.querySelectorAll('#dashboard-view-toggle, #report-refresh').forEach((control) => control.remove());
+    upgradeNativeBranchFilter();
+    const branchTrigger = document.querySelector('#report-branch-filter');
+    const branchListbox = document.querySelector('#report-branch-options');
+    const dateInput = document.querySelector('#report-date-filter');
+    if (branchTrigger) {
+      const allBranches = DATA.scope === 'all';
+      const options = allBranches ? [['', 'All Branches'], ...DATA.branches.map((b) => [b.id, b.name])] : DATA.branches.map((b) => [b.id, b.name]);
+      if (!allBranches && !DATA.branches.some((b) => b.id === branchFilter)) branchFilter = DATA.branches[0]?.id || '';
+      if (branchFilter && !DATA.branches.some((b) => b.id === branchFilter)) branchFilter = '';
+      renderBranchOptions(options);
+      branchTrigger.disabled = !allBranches;
+      branchListbox?.setAttribute('aria-disabled', String(!allBranches));
+      if (!allBranches) closeBranchDropdown(false);
+    }
+    if (dateInput) {
+      dateInput.max = DATA.today;
+      if (!dateInput.value) dateInput.value = DATA.today;
+    }
+    const activeBranch = DATA.branches.find((b) => b.id === branchFilter);
+    const scope = document.querySelector('#topbar-scope');
+    if (scope) scope.textContent = activeBranch ? activeBranch.name : DATA.scope === 'all' ? 'All Branches' : DATA.branch_name || 'Your Branch';
+    const dateLabel = document.querySelector('#topbar-date-label');
+    if (dateLabel) dateLabel.textContent = new Date((dateInput?.value || DATA.today) + 'T00:00')
+      .toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+    const viewLabel = document.querySelector('#dashboard-view-label');
+    if (viewLabel) viewLabel.textContent = view.toUpperCase() + ' VIEW';
   }
   function shell() {
-    const keys = views.length > 1 ? `<div class="keys" role="group" aria-label="Report view">${views.map((r) => `<button type="button" class="key" data-role="${r}" aria-pressed="${r === view}">${VIEW_NAMES[r]}</button>`).join('')}</div>` : '';
-    const dial = views.length > 1 ? `<div class="dial-box"><button type="button" class="dial" id="rpt-dial" aria-label="Turn to switch report view"><span class="needle" style="transform:rotate(${(views.indexOf(view) - (views.length - 1) / 2) * 55}deg)"></span></button><small>${VIEW_NAMES[view]}</small></div>` : '<span></span>';
-    const scope = `Scope: ${DATA.scope === 'all' ? 'All branches' : esc(DATA.branch_name || 'Your branch') + ' branch'}.`;
-    if (section === 'branches') {
-      return `<header class="slim"><h1><span class="brand-led"></span>Branches</h1><span class="meta">${scope} As of ${fmtDay(DATA.today)} ${DATA.today.slice(0, 4)}</span></header>
-      <div id="rpt-view" class="rpt-view"></div>`;
+    const keys = section !== 'branches' && views.length > 1 ? views.map((r) => `<button type="button" class="rail-btn rail-view-key" data-role="${r}" aria-label="${VIEW_NAMES[r]} report view" aria-pressed="${r === view}"><span class="rail-pill"><span class="rail-view-short">${r === 'developer' ? '&lt;/&gt;' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>'}</span></span><span class="rail-label">${r === 'developer' ? 'Dev' : VIEW_NAMES[r]}</span></button>`).join('') : '';
+    const title = section === 'branches' ? 'Branches' : 'Visitor Dashboard';
+    if (headerRoot) {
+      headerRoot.innerHTML = `<h2>${title}</h2>`;
+      headerRoot.hidden = false;
+      headerRoot.closest('.topbar')?.classList.add('has-context');
     }
-    return `<header class="slim"><h1><span class="brand-led"></span>Visitor Dashboard</h1><span class="meta">${scope} As of ${fmtDay(DATA.today)} ${DATA.today.slice(0, 4)}</span>${keys}</header>
-      <div id="rpt-view" class="rpt-view"></div>`;
+    if (viewsRoot) {
+      viewsRoot.innerHTML = keys;
+      viewsRoot.hidden = !keys;
+    }
+    return '<div id="rpt-view" class="rpt-view"></div>';
   }
   function animateIn() {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -220,15 +479,16 @@
   function draw(full) {
     if (full) {
       root.innerHTML = shell();
-      if (filtersRoot) filtersRoot.innerHTML = [['all', 'All visitors'], ['booked', 'Booked'], ['open', 'In progress']].map(([k, l]) => `<button type="button" class="pill" data-status="${k}" aria-pressed="${status === k}">${l}</button>`).join('');
+      if (filtersRoot) filtersRoot.innerHTML = FILTERS.map(([k, l, icon]) => `<button type="button" class="pill" data-status="${k}" aria-pressed="${recordsView && status === k}"><span class="dock-icon">${icon}</span><span class="dock-label">${l}</span></button>`).join('');
     } else if (filtersRoot) {
-      filtersRoot.querySelectorAll('.pill').forEach((p) => p.setAttribute('aria-pressed', p.dataset.status === status));
+      filtersRoot.querySelectorAll('.pill').forEach((p) => p.setAttribute('aria-pressed', recordsView && p.dataset.status === status));
     }
+    syncTopbar();
     const hint = DATA.scope === 'branch' && !ALL.length ? `<div class="raised panel">${flag('No visitors are saved to ' + esc(DATA.branch_name || 'this branch') + ' yet.', 'Visitors appear here once they are registered by a user assigned to this branch.')}</div>` : '';
     const rows = scoped();
-    const compact = section !== 'branches' && status === 'all';
-    const records = status === 'all' ? '' : tablePanel(rows, 'Visitor records',
-      status === 'booked' ? 'Booked visitors' : 'Visitors who have not booked yet', true);
+    const compact = section !== 'branches' && status === 'all' && !recordsView;
+    const records = recordsView || status !== 'all' ? tablePanel(rows, 'Visitor records',
+      status === 'booked' ? 'Booked visitors' : status === 'open' ? 'Visitors who have not booked yet' : 'All registered visitors', true) : '';
     document.body.classList.toggle('fit', compact);
     root.classList.toggle('one', compact);
     root.querySelector('#rpt-view').innerHTML = section === 'branches'
@@ -246,7 +506,11 @@
       return o;
     });
     views = d.role === 'developer' ? ['developer', 'admin'] : d.scope === 'all' ? ['admin'] : ['branch_manager'];
-    if (!views.includes(view)) view = views[0];
+    let savedView = '';
+    try { savedView = localStorage.getItem('dashboardView') || ''; } catch (_) {}
+    if (d.role === 'developer' && (savedView === 'admin' || savedView === 'developer')) view = savedView;
+    else if (d.role === 'developer') view = 'developer';
+    else view = 'admin';
   }
 
   /* ---------- hover interaction: highlight the item under the cursor, fade the rest, show a tooltip ---------- */
@@ -275,7 +539,11 @@
       tip.innerHTML = '<span>' + el.dataset.t + '</span>' + el.dataset.v;
       tip.hidden = false;
       const w = tip.offsetWidth, h = tip.offsetHeight;
-      let x = e.clientX + 14, y = e.clientY - h - 12;
+      const chartRect = chart.getBoundingClientRect();
+      const hoverRect = el.getBoundingClientRect();
+      let x = e.clientX + 14;
+      let y = hoverRect.top - h - 8;
+      if (y < chartRect.top) y = chartRect.top;
       if (x + w > innerWidth - 8) x = e.clientX - w - 14;
       if (y < 8) y = e.clientY + 18;
       tip.style.left = x + 'px'; tip.style.top = y + 'px';
@@ -284,24 +552,72 @@
   }
   function bind() {
     root.addEventListener('click', (e) => {
-      const key = e.target.closest('.key'), dial = e.target.closest('#rpt-dial');
-      if (key) { view = key.dataset.role; draw(true); }
-      else if (dial) { view = views[(views.indexOf(view) + 1) % views.length]; draw(true); }
+      const report = e.target.closest('[data-report-status]');
+      if (report) { status = report.dataset.reportStatus; recordsView = true; draw(false); onStatus(); }
     });
+    if (viewsRoot) viewsRoot.addEventListener('click', (e) => {
+      const key = e.target.closest('[data-role]');
+      if (key) { view = key.dataset.role; draw(true); }
+    });
+    if (headerRoot) headerRoot.addEventListener('click', (e) => {
+      const key = e.target.closest('.key');
+      if (key) { view = key.dataset.role; draw(true); }
+    });
+    const topbar = headerRoot?.closest('.topbar');
+    if (topbar) {
+      topbar.addEventListener('click', (e) => {
+        const trigger = e.target.closest('#report-branch-filter');
+        if (trigger) {
+          e.preventDefault();
+          if (branchDropdownOpen) closeBranchDropdown(true);
+          else openBranchDropdown();
+          return;
+        }
+        const option = e.target.closest('#report-branch-options [role="option"]');
+        if (option) {
+          e.preventDefault();
+          selectBranch(option.dataset.value);
+        }
+      });
+      topbar.addEventListener('keydown', handleBranchDropdownKeydown);
+      topbar.addEventListener('focusout', (e) => {
+        const { root: branchRoot } = branchDropdownParts();
+        if (branchDropdownOpen && branchRoot && !branchRoot.contains(e.relatedTarget)) closeBranchDropdown(false);
+      });
+      topbar.addEventListener('change', (e) => {
+        if (e.target.matches('#report-date-filter')) window.MagnusReports.load(section);
+      });
+      document.addEventListener('click', (e) => {
+        const { root: branchRoot } = branchDropdownParts();
+        if (branchDropdownOpen && branchRoot && !branchRoot.contains(e.target)) closeBranchDropdown(false);
+      });
+    }
     if (filtersRoot) filtersRoot.addEventListener('click', (e) => {
       const pill = e.target.closest('.pill');
-      if (pill) { status = pill.dataset.status; draw(false); }
+      if (pill) {
+        onDashboard();
+        section = 'overview';
+        status = pill.dataset.status;
+        recordsView = true;
+        draw(false);
+        onStatus();
+      }
     });
   }
   window.MagnusReports = {
-    init(opts) { apiGet = opts.api; esc = opts.esc || esc; onError = opts.onError || onError; root = opts.root; filtersRoot = opts.filtersRoot || null; root.classList.add('rpt'); bind(); bindHover(); },
-    async records(target) {
-      try {
-        prepare(await apiGet('/api/admin/report'));
-        target.classList.add('rpt');
-        target.innerHTML = tablePanel(ALL, 'Visitor records', 'Each visitor by name, with the last saved step', true);
-        target.querySelectorAll('.panel,tbody tr').forEach((e) => { e.style.animation = 'none'; });
-      } catch (error) { onError(error); }
+    init(opts) {
+      apiGet = opts.api; esc = opts.esc || esc; onError = opts.onError || onError; onDashboard = opts.onDashboard || onDashboard; onStatus = opts.onStatus || onStatus;
+      root = opts.root; headerRoot = opts.headerRoot || null; viewsRoot = opts.viewsRoot || null; filtersRoot = opts.filtersRoot || null;
+      const token = getComputedStyle(root);
+      C.coral = token.getPropertyValue('--mocha-brown').trim();
+      C.teal = token.getPropertyValue('--mocha-teal').trim();
+      C.amber = token.getPropertyValue('--mocha-tan').trim();
+      C.leather = token.getPropertyValue('--mocha-muted-brown').trim();
+      C.sand = token.getPropertyValue('--mocha-tan').trim();
+      C.rust = token.getPropertyValue('--mocha-rust').trim();
+      C.ink = token.getPropertyValue('--mocha-ink').trim();
+      C.booked = token.getPropertyValue('--mocha-booked').trim();
+      root.classList.add('rpt'); bind(); bindHover(); setupSoundToggle();
     },
     async load(next) {
       if (next) section = next;
@@ -309,6 +625,16 @@
         prepare(await apiGet('/api/admin/report'));
         draw(true);
       } catch (error) { onError(error); }
+    },
+    async dashboard() {
+      status = 'all';
+      recordsView = false;
+      await this.load('overview');
+    },
+    clearStatusSelection() {
+      status = 'all';
+      recordsView = false;
+      if (filtersRoot) filtersRoot.querySelectorAll('.pill').forEach((p) => p.setAttribute('aria-pressed', 'false'));
     },
   };
 })();

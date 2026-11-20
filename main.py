@@ -1644,7 +1644,7 @@ def admin_report():
         data = json.loads(row["data"] or "{}")
         booked = data.get("status") == "booked"
         visitors.append({
-            "name": row["name"], "created": row["created"], "updated": row["updated"],
+            "id": row["id"], "name": row["name"], "created": row["created"], "updated": row["updated"],
             "qualification": (data.get("qualification") or "").strip() or None,
             "has_place": bool((data.get("place") or "").strip()),
             "status": "booked" if booked else "in_progress",

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>Magnus management</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}"></head><body>
@@ -19,17 +19,37 @@
   </form>
 </section>
 <main id="dashboard" hidden>
-  <header class="topbar"><h1>Magnus management</h1><span id="signed-in-user"></span></header>
+  <header class="topbar">
+    <div class="topbar-identity">
+      <div class="topbar-brand"><span>MAGNUS MANAGEMENT</span><span class="brand-divider">·</span><span id="topbar-scope">All Branches</span><span class="brand-divider">·</span><span id="topbar-date-label"></span><span class="brand-divider dashboard-view-divider">·</span><span id="dashboard-view-label">ADMIN VIEW</span></div>
+      <div id="topbar-context" class="topbar-context" hidden></div>
+      <div class="topbar-account"><span>Signed in as <strong id="signed-in-name"></strong></span><span id="signed-in-user" class="topbar-role"></span><span class="topbar-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 21a7 7 0 0114 0"></path></svg></span></div>
+    </div>
+    <div class="topbar-controls">
+      <div class="topbar-field"><span>Branch</span>
+        <div id="report-branch-dropdown" class="branch-filter">
+          <button id="report-branch-filter" class="branch-filter-trigger" type="button" aria-label="Branch" aria-haspopup="listbox" aria-expanded="false" aria-controls="report-branch-options">
+            <span id="report-branch-label">All Branches</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+          <div id="report-branch-options" class="branch-filter-list" role="listbox" aria-label="Branches" hidden></div>
+        </div>
+      </div>
+      <label class="topbar-field">Date<input id="report-date-filter" type="date"></label>
+      <button id="admin-theme-toggle" type="button" class="topbar-theme" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.5A8.5 8.5 0 018.5 3.5 8.5 8.5 0 1020.5 15.5Z"></path></svg></button>
+    </div>
+  </header>
   <aside class="rail" id="rail" aria-label="Management menu">
+    <div id="report-views" class="rail-view-group" role="group" aria-label="Report view" hidden></div>
     <div class="rail-group" id="side-tabs"></div>
     <span class="rail-sep" id="rail-sep" hidden></span>
     <a href="/?flow=1" class="rail-btn" aria-label="Counselling flow"><span class="rail-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z"></path></svg><span class="rail-label">Counselling flow</span></span></a>
+    <button id="sound-toggle" type="button" class="rail-btn" aria-label="Disable sound" aria-pressed="true" title="Disable sound"><span class="rail-pill"></span></button>
     <button id="logout" type="button" class="rail-btn" aria-label="Sign out"><span class="rail-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg><span class="rail-label">Sign out</span></span></button>
   </aside>
   <nav class="dock" id="dock" aria-label="Pages and filters">
     <div class="dock-group" id="main-tabs"></div>
-    <span class="dock-sep" id="dock-sep" hidden></span>
-    <div class="dock-group" id="dock-filters" role="group" aria-label="Filter by status" hidden></div>
+    <div class="dock-group" id="dock-filters" role="group" aria-label="Dashboard and visitor status" hidden></div>
   </nav>
   <div class="watermark" aria-hidden="true">Data Analyst Team<br>Magnus</div>
   <div class="stage">
@@ -40,7 +60,6 @@
     <div id="leads-empty" class="empty" hidden>No visitors found.</div>
     <table id="leads-table" hidden><thead><tr id="leads-head"></tr></thead><tbody></tbody></table>
   </section>
-  <section id="records-panel" class="wrap plain" hidden><div id="records-root"></div></section>
   <section id="users-panel" class="wrap" hidden>
     <div class="toolbar">
       <label class="search">Search name or mobile<input id="user-search" type="search" placeholder="Search users"></label>
@@ -121,6 +140,18 @@ const has=(permission)=>state.user?.permissions?.includes(permission);
 const showNotice=(message,error=false)=>{const node=$('#notice');node.textContent=message;node.className=`notice${error?' error':''}`;node.hidden=!message;};
 const fmtDate=(value)=>value?new Date(value).toLocaleString():'—';
 const setVisible=(selector,visible)=>$(selector).hidden=!visible;
+const DROPLET_SOUND_URL={{ url_for('static',filename='audio/water-droplet-restored.wav')|tojson }};
+let dockSound=null;
+function playDockDroplet(){
+  if(window.magnusSoundEnabled===false)return;
+  if(!dockSound){
+    dockSound=new Audio(DROPLET_SOUND_URL);
+    dockSound.preload='auto';
+    dockSound.volume=0.140625;
+  }
+  if(dockSound.readyState>=2)dockSound.currentTime=0;
+  dockSound.play().catch(error=>showNotice(`Button sound unavailable: ${error.message}`,true));
+}
 function setPasswordVisibility(toggle,visible){
   const input=document.getElementById(toggle.dataset.passwordToggle);
   if(!input)return;
@@ -133,6 +164,9 @@ function setPasswordVisibility(toggle,visible){
 document.addEventListener('click',event=>{
   const toggle=event.target.closest('[data-password-toggle]');
   if(toggle)setPasswordVisibility(toggle,toggle.getAttribute('aria-pressed')!=='true');
+});
+document.addEventListener('click',event=>{
+  if(event.target.closest('button:not(:disabled),a[href],[role="button"],input[type="button"],input[type="submit"],[data-k]'))playDockDroplet();
 });
 function canManageDeveloper(target){return !target.locked||has(PERMISSION.userManageDeveloper);}
 function canRemove(user){
@@ -157,38 +191,46 @@ const RAIL_ICONS={
   audit:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h6"></path></svg>',
   roles:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'
 };
+const DOCK_ICONS={
+  dashboard:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"></rect><rect x="13" y="3" width="8" height="5" rx="1"></rect><rect x="13" y="10" width="8" height="11" rx="1"></rect><rect x="3" y="13" width="8" height="8" rx="1"></rect></svg>',
+  branches:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="3"></circle><circle cx="6" cy="19" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M12 8v4M6 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path></svg>',
+  leads:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M22 11h-6"></path></svg>'
+};
 let reportsReady=false;
 function startDashboard(){
-  if(!reportsReady){MagnusReports.init({api,esc,root:$('#reports-root'),filtersRoot:$('#dock-filters'),onError:error=>showNotice(error.message,true)});reportsReady=true;}
+  if(!reportsReady){MagnusReports.init({api,esc,root:$('#reports-root'),headerRoot:$('#topbar-context'),viewsRoot:$('#report-views'),filtersRoot:$('#dock-filters'),onDashboard:()=>showPanel('dashboard'),onStatus:()=>document.querySelectorAll('#main-tabs [data-panel]').forEach(item=>item.classList.remove('active')),onError:error=>showNotice(error.message,true)});reportsReady=true;}
   setVisible('#login-panel',false);setVisible('#dashboard',true);
-  $('#signed-in-user').textContent=`${state.user.name} · ${state.user.role_name}${state.user.branch_name?` · ${state.user.branch_name}`:''}`;
+  $('#signed-in-name').textContent=state.user.name;
+  $('#signed-in-user').textContent=state.user.role_name.toUpperCase();
   const tabs=[];
-  if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['reports','Reports','dock']);
+  const canViewDashboard=has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll)||state.user.role==='developer';
+  if(canViewDashboard)tabs.push(['dashboard','Dashboard','dock']);
   if(has(PERMISSION.visitorViewAll)||state.user.role==='developer')tabs.push(['branches','Branches','dock']);
   if(has(PERMISSION.visitorViewBranch)||has(PERMISSION.visitorViewAll))tabs.push(['leads','Visitors','dock']);
   if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))tabs.push(['users','Users','rail']);
   if(has(PERMISSION.rolesView))tabs.push(['audit','Audit log','rail']);
   const tabButton=([key,label,place])=>place==='rail'
     ?`<button type="button" data-panel="${key}" class="rail-btn ${key===tabs[0][0]?'active':''}" aria-label="${label}"><span class="rail-pill">${RAIL_ICONS[key]}<span class="rail-label">${label}</span></span></button>`
-    :`<button type="button" data-panel="${key}" class="${key===tabs[0][0]?'active':''}">${label}</button>`;
+    :`<button type="button" data-panel="${key}" class="${key===tabs[0][0]?'active':''}"><span class="dock-icon">${DOCK_ICONS[key]}</span><span class="dock-label">${label}</span></button>`;
   $('#main-tabs').innerHTML=tabs.filter(tab=>tab[2]==='dock').map(tabButton).join('');
   $('#side-tabs').innerHTML=tabs.filter(tab=>tab[2]==='rail').map(tabButton).join('')+
     (has(PERMISSION.rolesView)?`<button type="button" id="open-roles" class="rail-btn" aria-label="Roles and permissions"><span class="rail-pill">${RAIL_ICONS.roles}<span class="rail-label">Roles &amp; permissions</span></span></button>`:'');
   setVisible('#rail-sep',!!$('#side-tabs').children.length);
   setVisible('#dock',!!tabs.some(tab=>tab[2]==='dock'));
   const showPanel=key=>{
+    if(key!=='dashboard')MagnusReports.clearStatusSelection();
+    if(key!=='dashboard')setVisible('#report-views',false);
+    if(key!=='dashboard'&&key!=='branches'){setVisible('#topbar-context',false);$('.topbar').classList.remove('has-context');}
     document.querySelectorAll('#main-tabs [data-panel], #side-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item.dataset.panel===key));
-    const target=key==='branches'?'reports':key;
+    const target=key==='branches'||key==='dashboard'?'reports':key;
     for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,target===panel);
-    setVisible('#records-panel',key==='leads'&&state.user.role==='developer');
-    document.body.classList.toggle('fit',key==='reports');
-    const filters=key==='reports'||key==='branches';
-    setVisible('#dock-filters',filters);setVisible('#dock-sep',filters&&!!$('#main-tabs').children.length);
+    document.body.classList.toggle('fit',key==='dashboard'||key==='branches');
+    setVisible('#dock-filters',canViewDashboard);
   };
   const navigate=event=>{
     const button=event.target.closest('[data-panel]');if(!button)return;
     showPanel(button.dataset.panel);
-    if(button.dataset.panel==='reports')MagnusReports.load('overview');
+    if(button.dataset.panel==='dashboard')MagnusReports.dashboard();
     if(button.dataset.panel==='branches')MagnusReports.load('branches');
     if(button.dataset.panel==='leads')loadLeadsPage();
     if(button.dataset.panel==='users')loadUsers();
@@ -196,12 +238,13 @@ function startDashboard(){
   };
   $('#main-tabs').onclick=navigate;$('#side-tabs').onclick=navigate;
   $('#open-roles')?.addEventListener('click',openRoles);
-  showPanel(tabs[0]?.[0]);
-  if(tabs[0]?.[0]==='reports')MagnusReports.load('overview');
-  if(tabs[0]?.[0]==='branches')MagnusReports.load('branches');
-  if(tabs[0]?.[0]==='leads')loadLeadsPage();
-  if(tabs[0]?.[0]==='users')loadUsers();
-  if(tabs[0]?.[0]==='audit')loadAudit();
+  const initialPanel=canViewDashboard?'dashboard':tabs[0]?.[0];
+  showPanel(initialPanel);
+  if(initialPanel==='dashboard')MagnusReports.dashboard();
+  if(initialPanel==='branches')MagnusReports.load('branches');
+  if(initialPanel==='leads')loadLeadsPage();
+  if(initialPanel==='users')loadUsers();
+  if(initialPanel==='audit')loadAudit();
   if(has(PERMISSION.userViewAll)||has(PERMISSION.userViewOwnBranch))initializeUserFilters();
 }
 async function authenticate(){
@@ -311,22 +354,41 @@ $('#users-table tbody').addEventListener('click',async event=>{
   try{await api(endpoints[button.dataset.action][1],{method:endpoints[button.dataset.action][0]});showNotice('User status updated.');loadUsers();}
   catch(error){showNotice(error.message,true);}
 });
-function loadLeadsPage(){
-  loadLeads();
-  if(state.user.role==='developer')MagnusReports.records($('#records-root'));
-}
+function loadLeadsPage(){loadLeads();}
 async function loadLeads(){
   const canListen=has(PERMISSION.recordingListen);
-  $('#leads-head').innerHTML='<th>Name</th><th>Phone</th><th>Place</th><th>Course</th><th>Payment</th><th>Booking</th><th>Batch</th><th>Status</th><th>Updated</th><th>Photo</th>'+(canListen?'<th>Recording</th>':'');
+  const showAudio=state.user.role==='developer'||canListen;
+  $('#leads-head').innerHTML='<th>Name</th><th>Phone</th><th>Place</th><th>Qualification</th><th>Course</th><th>Payment</th><th>Amount</th><th>Batch</th><th>Registered</th><th>Minutes</th><th>Saved step</th><th>Stage</th>'+(showAudio?'<th>Audio</th>':'')+'<th>Photo</th>';
   try{
-    const rows=await api('/api/admin/leads');$('#leads-empty').hidden=!!rows.length;$('#leads-table').hidden=!rows.length;
-    $('#leads-table tbody').innerHTML=rows.map(lead=>`<tr>
-      <td>${esc(lead.name)}</td><td>${esc(lead.phone)}</td><td>${esc(lead.place||'')}</td><td>${esc(lead.course||'')}</td>
-      <td>${esc(lead.payment||'')}</td><td>${lead.booking_amount?'₹'+Number(lead.booking_amount).toLocaleString('en-IN'):''}</td>
-      <td>${esc(lead.batch||'')}</td><td>${esc(lead.status||'')}</td><td>${esc((lead.updated||'').replace('T',' '))}</td>
-      <td><a href="/api/admin/lead_photo/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener">View</a></td>
-      ${canListen?`<td>${lead.recording_status==='complete'?`<audio controls preload="none" src="/api/admin/lead_recording/${encodeURIComponent(lead.id)}"></audio><a href="/api/admin/lead_recording/${encodeURIComponent(lead.id)}?download=1">Download</a>`:'—'}</td>`:''}
-    </tr>`).join('');
+    const rows=await api('/api/admin/leads');
+    let report=null;
+    if(state.user.role==='developer'){
+      try{report=await api('/api/admin/report');}
+      catch(error){showNotice('Supplemental visitor details could not be loaded: '+error.message,true);}
+    }
+    const reportById=new Map((report?.visitors||[]).map((visitor,index)=>[visitor.id,{...visitor,ref:'V-'+String(index+1).padStart(2,'0')}]));
+    $('#leads-empty').hidden=!!rows.length;$('#leads-table').hidden=!rows.length;
+    $('#leads-table tbody').innerHTML=rows.map(lead=>{
+      const visitor=reportById.get(lead.id);
+      const created=lead.created||'',updated=lead.updated||created;
+      const createdAt=Date.parse(created),updatedAt=Date.parse(updated);
+      const minutes=Number.isFinite(createdAt)&&Number.isFinite(updatedAt)?Math.max(0,Math.round((updatedAt-createdAt)/60000)):0;
+      const stage=(visitor&&visitor.status)||lead.status||'in_progress';
+      const amount=lead.booking_amount||(visitor&&visitor.amount);
+      const audioSummary=visitor&&visitor.recordings?visitor.recordings+' rec.':'';
+      const recording=canListen&&lead.recording_status==='complete'
+        ?`<audio controls preload="none" src="/api/admin/lead_recording/${encodeURIComponent(lead.id)}"></audio><a href="/api/admin/lead_recording/${encodeURIComponent(lead.id)}?download=1">Download</a>`
+        :canListen&&!audioSummary?'—':'';
+      const audio=[audioSummary,recording].filter(Boolean).join('<br>')||'—';
+      return `<tr>
+        <td><b>${esc(lead.name)}</b>${visitor?` <span style="color:var(--ink-3);font-size:11.5px">${visitor.ref}</span>`:''}</td>
+        <td>${esc(lead.phone||'')}</td><td>${esc(lead.place||'')}</td><td>${esc(lead.qualification||'')}</td>
+        <td>${esc(lead.course||'')}</td><td>${esc(lead.payment||'')}</td><td>${amount?'₹'+Number(amount).toLocaleString('en-IN'):''}</td>
+        <td>${esc(lead.batch||'')}</td><td>${esc(created.replace('T',' '))}</td><td>${minutes}</td>
+        <td>${visitor?visitor.step:(lead.progress||0)}</td><td>${stage==='booked'?'Booked':'In progress'}</td>${showAudio?`<td>${audio}</td>`:''}
+        <td><a href="/api/admin/lead_photo/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener">View</a></td>
+      </tr>`;
+    }).join('');
   }catch(error){showNotice(error.message,true);}
 }
 $('#csv').addEventListener('click',async()=>{
@@ -431,5 +493,18 @@ $('#save-overrides').addEventListener('click',async()=>{
   catch(error){showNotice(error.message,true);}
 });
 document.querySelectorAll('[data-close="roles-dialog"]').forEach(button=>button.addEventListener('click',()=>$('#roles-dialog').close()));
+function setAdminTheme(theme){
+  const dark=theme==='dark';
+  document.documentElement.dataset.adminTheme=dark?'dark':'light';
+  const toggle=$('#admin-theme-toggle');
+  toggle.setAttribute('aria-label',`Switch to ${dark?'light':'dark'} theme`);
+  toggle.title=`Switch to ${dark?'light':'dark'} theme`;
+  toggle.innerHTML=dark
+    ?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>'
+    :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.5A8.5 8.5 0 018.5 3.5 8.5 8.5 0 1020.5 15.5Z"></path></svg>';
+  localStorage.setItem('admin-theme',dark?'dark':'light');
+}
+setAdminTheme(localStorage.getItem('admin-theme')||'light');
+$('#admin-theme-toggle').addEventListener('click',()=>setAdminTheme(document.documentElement.dataset.adminTheme==='dark'?'light':'dark'));
 authenticate();
 </script></body></html>
