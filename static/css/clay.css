@@ -125,6 +125,29 @@ html[data-theme] .pin-form>input,html[data-theme] .pin-form .password-field inpu
 html[data-theme] .pin-form>input:focus,html[data-theme] .pin-form .password-field input:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 4px rgba(46,143,123,.16)}
 html[data-theme] .password-eye{color:var(--ink-2)}
 html[data-theme] .password-eye:hover{background:rgba(90,70,60,.08)}
+html[data-theme] .pin-dialog-actions{gap:10px}
+html[data-theme] .pin-dialog-actions .btn-next{
+  min-height:44px;
+  border:0;
+  border-radius:10px;
+  background:linear-gradient(150deg,var(--esp-hi),var(--esp-lo));
+  color:#fff;
+  box-shadow:0 4px 12px rgba(20,12,9,.22);
+  font-family:'Lora',Georgia,serif;
+  font-size:.95rem;
+  font-weight:700;
+  letter-spacing:.01em
+}
+html[data-theme] .pin-dialog-actions .btn-next:hover:not(:disabled){
+  background:linear-gradient(150deg,#6B5B52,var(--esp));
+  box-shadow:0 6px 16px rgba(20,12,9,.28)
+}
+html[data-theme] .pin-dialog-actions .btn-next:active:not(:disabled){transform:translateY(1px)}
+html[data-theme] .pin-dialog-actions .btn-next:disabled{
+  background:linear-gradient(150deg,#E8E0DB,#D8CDC6);
+  box-shadow:none;
+  color:#8C817B
+}
 html[data-theme] .camera-preview p{color:var(--ink-2)}
 html[data-theme] .badge-icon{background:linear-gradient(150deg,#6AAB98,var(--teal) 55%,var(--teal-lo));box-shadow:0 8px 24px rgba(30,106,90,.35)}
 html[data-theme] .service-map-badge{background:var(--esp)} html[data-theme] .service-map-badge.total{background:#F3EAE5;color:var(--ink);border-color:var(--teal)}
