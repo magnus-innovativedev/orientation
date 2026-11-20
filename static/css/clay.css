@@ -117,7 +117,7 @@ html[data-theme] .pin-dialog-backdrop{
     linear-gradient(160deg,#F6ECE7 0%,#EEE4DF 45%,#E2D8D2 100%);
   backdrop-filter:none;-webkit-backdrop-filter:none
 }
-html[data-theme] .pin-dialog-logo{width:76px;height:76px;padding:8px;border-radius:20px;background:linear-gradient(150deg,#040842,#000033 55%,#050b4a);box-shadow:0 6px 16px rgba(90,70,60,.16)}
+html[data-theme] .pin-dialog-logo{width:76px;height:76px;padding:8px;border-radius:20px;background:linear-gradient(150deg,#040842,#000033 55%,#050b4a);box-shadow:0 4px 12px rgba(20,12,9,.16)}
 html[data-theme] .pin-dialog h1,html[data-theme] .pin-dialog h2{font-family:'Lora',Georgia,serif;font-size:2rem;color:var(--ink)}
 html[data-theme] .pin-dialog>p{color:var(--ink-2)}
 html[data-theme] .pin-form label{color:var(--ink)}

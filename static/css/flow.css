@@ -85,7 +85,7 @@ main { overflow: visible; padding: 8px 0 24px; }
 .student-photo-actions button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
 .pin-dialog-backdrop { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; min-height: 100dvh; padding: 20px; background: rgba(2,8,14,.78); backdrop-filter: blur(10px); }
 .pin-dialog { width: min(100%, 460px); padding: 32px; border: 1px solid rgba(190,224,241,.38); border-radius: 28px; background: linear-gradient(145deg, rgba(51,83,102,.98), rgba(7,23,36,.98)); color: var(--text-primary); box-shadow: 0 24px 70px rgba(0,0,0,.5); }
-.pin-dialog-logo { display: block; width: 62px; height: 62px; margin: 0 auto 12px; object-fit: contain; }
+.pin-dialog-logo { display: block; width: 76px; height: 76px; margin: 0 auto 12px; object-fit: contain; }
 .pin-dialog h1, .pin-dialog h2 { margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 1.75rem; line-height: 1.15; text-align: center; }
 .pin-dialog > p { max-width: 36ch; margin: 10px auto 0; color: var(--text-secondary); line-height: 1.55; text-align: center; }
 .pin-form { display: grid; gap: 10px; margin-top: 24px; }
