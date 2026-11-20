@@ -1637,6 +1637,7 @@ function App() {
     return (
       <div className="pin-dialog-backdrop">
         <section className="pin-dialog" role="main" aria-labelledby="pin-dialog-title">
+          <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="" />
           <h1 id="pin-dialog-title">Sign in to Magnus</h1>
           <p>Use your assigned username (email) and password to enter the portal.</p>
           <form className="pin-form" onSubmit={submitLogin}>
@@ -1797,6 +1798,7 @@ function App() {
           if (authUser && event.key === 'Escape') closeLoginDialog();
         }}>
           <section className="pin-dialog" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
+            <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="" />
             <h2 id="pin-dialog-title">User sign-in</h2>
             <p>Sign in with your assigned username (email) and password to continue.</p>
             <form className="pin-form" onSubmit={submitLogin}>
