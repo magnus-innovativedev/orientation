@@ -1632,7 +1632,12 @@ function App() {
     return () => window.removeEventListener('keydown', k);
   });
 
-  if (!authReady) return <div className="boot" role="status">Checking your sign-in…</div>;
+  if (!authReady) return (
+    <div className="boot" role="status">
+      <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="Magnus" />
+      <span>Checking your sign-in…</span>
+    </div>
+  );
   if (!authUser) {
     return (
       <div className="pin-dialog-backdrop">
