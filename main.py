@@ -515,6 +515,9 @@ def require_lead_access(lead_id, permission, user=None, con=None):
         if (Permission.VISITOR_VIEW_BRANCH not in permissions or not user["branch_id"]
                 or row["branch_id"] != user["branch_id"]):
             abort(403, "Visitor is outside your branch")
+        if (user["role_key"] == "orientation_manager"
+                and row["created_by_user_id"] != user["id"]):
+            abort(403, "Visitor belongs to another counsellor")
         data = json.loads(row["data"] or "{}")
         if data.get("status", "in_progress") != "in_progress":
             abort(403, "Only unfinished visitors can be accessed in your branch")
@@ -738,13 +741,14 @@ def create_recording():
     user = current_user()
     recording_id, token = secrets.token_urlsafe(18), secrets.token_urlsafe(32)
     created = now()
+    branch_id = None if user["role_key"] == "developer" else user["branch_id"]
     with db() as con:
         con.execute(
             """INSERT INTO audio_recordings
                (id, token_hash, created, updated, status, sample_rate, consented, branch_id, created_by_user_id)
                VALUES (?, ?, ?, ?, 'active', 16000, ?, ?, ?)""",
             (recording_id, hashlib.sha256(token.encode("utf-8")).hexdigest(), created, created,
-             created, user["branch_id"], user["id"]),
+             created, branch_id, user["id"]),
         )
     return jsonify(id=recording_id, token=token, sample_rate=16000, next_index=0, status="active"), 201
 
@@ -808,6 +812,8 @@ def link_recording(recording_id):
     if not lead_id:
         abort(400, "Visitor record is required")
     user = current_user()
+    if row["created_by_user_id"] != user["id"]:
+        abort(403, "Recording session belongs to another user")
     lead = require_lead_access(lead_id, Permission.VISITOR_RESUME, user)
     if Permission.VISITOR_VIEW_ALL not in user_permissions(user):
         if row["branch_id"] != user["branch_id"] or lead["branch_id"] != user["branch_id"]:
@@ -884,9 +890,11 @@ def create_lead():
     recording = recording_for_token(recording_id, recording_token) if recording_id else None
     if not recording or recording["status"] != "active" or recording["lead_id"]:
         abort(400, "Start an active recording session before entering visitor details")
-    if Permission.VISITOR_VIEW_ALL not in user_permissions(user):
-        if recording["created_by_user_id"] != user["id"] or recording["branch_id"] != user["branch_id"]:
-            abort(403, "Recording session is outside your branch")
+    is_developer = user["role_key"] == "developer"
+    if recording["created_by_user_id"] != user["id"]:
+        abort(403, "Recording session belongs to another user")
+    if not is_developer and recording["branch_id"] != user["branch_id"]:
+        abort(403, "Recording session is outside your branch")
     lid = secrets.token_urlsafe(8)  # unguessable id, so visitors can't read each other's data
     extra = {k: (b.get(k) or "").strip() for k in ("parent_name", "place", "qualification")}
     extra.update(status="in_progress", progress=0, docs={})
@@ -901,9 +909,11 @@ def create_lead():
                 )):
             abort(409, "Recording session is no longer available")
         con.execute(
-            """INSERT INTO leads (id, created, updated, name, phone, data, branch_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (lid, now(), now(), name, phone, json.dumps(extra), user["branch_id"]),
+            """INSERT INTO leads
+               (id, created, updated, name, phone, data, branch_id, created_by_user_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (lid, now(), now(), name, phone, json.dumps(extra),
+             None if is_developer else user["branch_id"], user["id"]),
         )
         con.execute("UPDATE audio_recordings SET lead_id=?, updated=? WHERE id=?",
                     (lid, now(), recording_id))
@@ -1588,6 +1598,8 @@ def visible_lead_rows(user, con):
         "SELECT * FROM leads WHERE branch_id=? ORDER BY updated DESC",
         (user["branch_id"],),
     ).fetchall()
+    if user["role_key"] == "orientation_manager":
+        rows = [row for row in rows if row["created_by_user_id"] == user["id"]]
     return [row for row in rows if json.loads(row["data"] or "{}").get("status", "in_progress") == "in_progress"]
 
 

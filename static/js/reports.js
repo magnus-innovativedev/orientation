@@ -535,7 +535,7 @@
         ' - ' + new Date(dateDraftEnd + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : 'Pick a start and an end date';
     const apply = popover.querySelector('.date-range-apply');
-    if (apply) apply.disabled = !(dateDraftStart && dateDraftEnd);
+    if (apply) apply.disabled = datePreset === 'custom' && !(dateDraftStart && dateDraftEnd);
   }
   function openDatePicker() {
     const popover = document.querySelector('#date-range-popover');
@@ -818,10 +818,15 @@
           return;
         }
         if (e.target.closest('.date-range-apply')) {
-          if (!dateDraftStart || !dateDraftEnd) return;
-          dateStart = dateDraftStart;
-          dateEnd = dateDraftEnd;
-          datePreset = 'custom';
+          if (datePreset === 'custom') {
+            if (!dateDraftStart || !dateDraftEnd) return;
+            dateStart = dateDraftStart;
+            dateEnd = dateDraftEnd;
+          } else {
+            setDatePreset(datePreset);
+            dateDraftStart = dateStart;
+            dateDraftEnd = dateEnd;
+          }
           closeDatePicker(false);
           syncTopbar();
           draw(false);
@@ -838,7 +843,11 @@
       document.addEventListener('click', (e) => {
         const { root: branchRoot } = branchDropdownParts();
         if (branchDropdownOpen && branchRoot && !branchRoot.contains(e.target)) closeBranchDropdown(false);
-        if (datePickerOpen && !e.target.closest('#date-range-picker')) closeDatePicker(false);
+        if (datePickerOpen) {
+          const insideDatePicker = e.composedPath().some((element) =>
+            element instanceof Element && element.id === 'date-range-picker');
+          if (!insideDatePicker) closeDatePicker(false);
+        }
       });
     }
     if (filtersRoot) filtersRoot.addEventListener('click', (e) => {

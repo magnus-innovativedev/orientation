@@ -221,7 +221,12 @@ function startDashboard(){
   const showPanel=key=>{
     if(key!=='dashboard')MagnusReports.clearStatusSelection();
     if(key!=='dashboard')setVisible('#report-views',false);
-    if(key!=='dashboard'&&key!=='branches'){setVisible('#topbar-context',false);$('.topbar').classList.remove('has-context');}
+    const tabTitles={dashboard:'Visitor Dashboard',branches:'Branches',leads:'Visitors',users:'Users',audit:'Audit log'};
+    if(tabTitles[key]){
+      $('#topbar-context').innerHTML=`<h2>${esc(tabTitles[key])}</h2>`;
+      setVisible('#topbar-context',true);
+      $('.topbar').classList.add('has-context');
+    }
     document.querySelectorAll('#main-tabs [data-panel], #side-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item.dataset.panel===key));
     const target=key==='branches'||key==='dashboard'?'reports':key;
     for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,target===panel);

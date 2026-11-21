@@ -52,7 +52,7 @@
 .rpt th{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);text-align:left;padding:8px 12px;white-space:nowrap;font-weight:700;border-bottom:0}
 .rpt td{padding:10px 12px;border-top:1px solid rgba(112,92,82,.16);border-bottom:0;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rpt tbody tr:hover{background:transparent}
-.rpt td.num,.rpt th.num{text-align:right}
+.rpt td.num,.rpt th.num{text-align:center}
 .rpt .chip{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11.5px;font-weight:700;background:linear-gradient(150deg,#FFF,#EBE0DA);box-shadow:0 2px 5px rgba(90,70,60,.2)}
 .rpt .chip.ok{color:var(--teal-lo)}.rpt .chip.warn{color:#7A6650}.rpt .chip.bad{color:#B5483A}
 .rpt .flag{display:flex;gap:14px;align-items:flex-start;padding:16px 18px}

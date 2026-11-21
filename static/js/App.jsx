@@ -501,7 +501,7 @@ function GenericSlide({ s, mp }) {
 }
 
 function RegisterSlide({
-  lead, setLead, onNew, onStart, recording, retentionDays, onStartSession, onResumeSession, onContinueSession,
+  lead, setLead, onNew, onStart, onLeadCreated, recording, retentionDays, onStartSession, onResumeSession, onContinueSession,
 }) {
   const [f, setF] = useState({ name: '', phone: '', parent_name: '', place: '', qualification: '' });
   const [err, setErr] = useState('');
@@ -514,7 +514,7 @@ function RegisterSlide({
     try {
       const body = { ...f, recording_id: recording.id, recording_token: recording.token };
       const l = await api('/api/leads', send('POST', body));
-      localStorage.setItem('leadId', l.id);
+      onLeadCreated(l.id);
       setLead(l);
       onStart();
     }
@@ -1084,15 +1084,7 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
   const [viewingMedia, setViewingMedia] = useState(null);
-  const [recording, setRecording] = useState(() => {
-    const id = localStorage.getItem(AUDIO_RECORDING_ID_KEY);
-    const token = localStorage.getItem(AUDIO_RECORDING_TOKEN_KEY);
-    if (!id || !token) return { id: '', token: '', status: 'idle', error: '', uploadWarning: '' };
-    return {
-      id, token, status: localStorage.getItem(AUDIO_RECORDING_FINISH_KEY) === id ? 'stopped_pending' : 'needs_resume',
-      error: '', uploadWarning: '',
-    };
-  });
+  const [recording, setRecording] = useState({ id: '', token: '', status: 'idle', error: '', uploadWarning: '' });
   const recordingRef = useRef(recording);
   const audioCaptureRef = useRef(null);
   const chunkIndexRef = useRef(0);
@@ -1104,6 +1096,19 @@ function App() {
   const signedIn = !!authUser;
   const hasPermission = (key) => !!authUser?.permissions?.includes(key);
   const isExplicitCounsellingFlow = new URLSearchParams(window.location.search).get('flow') === '1';
+  const accountStorageKey = (key) => authUser ? `${key}:${authUser.id}` : null;
+  const getSessionItem = (key) => {
+    const storageKey = accountStorageKey(key);
+    return storageKey ? localStorage.getItem(storageKey) : null;
+  };
+  const setSessionItem = (key, value) => {
+    const storageKey = accountStorageKey(key);
+    if (storageKey) localStorage.setItem(storageKey, value);
+  };
+  const removeSessionItem = (key) => {
+    const storageKey = accountStorageKey(key);
+    if (storageKey) localStorage.removeItem(storageKey);
+  };
 
   const updateRecording = (update) => {
     const next = typeof update === 'function' ? update(recordingRef.current) : update;
@@ -1112,10 +1117,10 @@ function App() {
   };
   const recordingHeaders = (session) => ({ 'X-Recording-Token': session.token });
   const clearRecordingStorage = () => {
-    localStorage.removeItem(AUDIO_RECORDING_ID_KEY);
-    localStorage.removeItem(AUDIO_RECORDING_TOKEN_KEY);
-    localStorage.removeItem(AUDIO_RECORDING_FINISH_KEY);
-    localStorage.removeItem(AUDIO_RECORDING_NEXT_INDEX_KEY);
+    removeSessionItem(AUDIO_RECORDING_ID_KEY);
+    removeSessionItem(AUDIO_RECORDING_TOKEN_KEY);
+    removeSessionItem(AUDIO_RECORDING_FINISH_KEY);
+    removeSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY);
   };
   const uploadQueuedAudio = async (session) => {
     if (!navigator.onLine) {
@@ -1180,7 +1185,7 @@ function App() {
   const saveAudioChunk = (audio, session) => {
     const index = chunkIndexRef.current;
     chunkIndexRef.current += 1;
-    localStorage.setItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(chunkIndexRef.current));
+    setSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(chunkIndexRef.current));
     chunkChainRef.current = chunkChainRef.current.then(async () => {
       await queueAudioChunk(session.id, index, audio, session.sampleRate);
       await uploadQueuedAudio(session);
@@ -1261,10 +1266,10 @@ function App() {
       });
       const created = await api('/api/recordings', send('POST', { consent: true }));
       const session = { id: created.id, token: created.token, sampleRate: created.sample_rate, status: 'starting', error: '', uploadWarning: '' };
-      localStorage.setItem(AUDIO_RECORDING_ID_KEY, session.id);
-      localStorage.setItem(AUDIO_RECORDING_TOKEN_KEY, session.token);
+      setSessionItem(AUDIO_RECORDING_ID_KEY, session.id);
+      setSessionItem(AUDIO_RECORDING_TOKEN_KEY, session.token);
       chunkIndexRef.current = created.next_index;
-      localStorage.setItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(created.next_index));
+      setSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(created.next_index));
       updateRecording(session);
       if (leadId) {
         const options = send('POST', { lead_id: leadId });
@@ -1319,10 +1324,10 @@ function App() {
       const queued = await queuedAudioChunks(current.id);
       chunkIndexRef.current = Math.max(
         status.next_index,
-        Number(localStorage.getItem(AUDIO_RECORDING_NEXT_INDEX_KEY)) || 0,
+        Number(getSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY)) || 0,
         ...queued.map((chunk) => chunk.index + 1),
       );
-      localStorage.setItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(chunkIndexRef.current));
+      setSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY, String(chunkIndexRef.current));
       const session = { ...current, sampleRate: status.sample_rate };
       await startAudioCapture(stream, session);
       updateRecording({ ...session, status: 'recording', error: '', uploadWarning: '' });
@@ -1346,7 +1351,7 @@ function App() {
       if (!await uploadQueuedAudio(session)) return false;
       if ((await queuedAudioChunks(session.id)).length) return false;
       const options = send('POST', {
-        expected_chunks: Math.max(chunkIndexRef.current, Number(localStorage.getItem(AUDIO_RECORDING_NEXT_INDEX_KEY)) || 0),
+        expected_chunks: Math.max(chunkIndexRef.current, Number(getSessionItem(AUDIO_RECORDING_NEXT_INDEX_KEY)) || 0),
       });
       options.headers = { ...options.headers, ...recordingHeaders(session) };
       const response = await fetch(`/api/recordings/${session.id}/complete`, options);
@@ -1365,7 +1370,7 @@ function App() {
   const finishRecording = async () => {
     const session = recordingRef.current;
     if (!session.id || !session.token || session.status !== 'recording') return;
-    localStorage.setItem(AUDIO_RECORDING_FINISH_KEY, session.id);
+    setSessionItem(AUDIO_RECORDING_FINISH_KEY, session.id);
     updateRecording((current) => ({ ...current, status: 'stopped_pending', uploadWarning: '' }));
     await stopAudioCapture(true);
     await chunkChainRef.current;
@@ -1420,7 +1425,7 @@ function App() {
     reload();
   }, [isExplicitCounsellingFlow]);
   useEffect(() => {
-    const id = localStorage.getItem('leadId');
+    const id = getSessionItem('leadId');
     if (!authUser || !id) return undefined;
     let cancelled = false;
     api(`/api/leads/${id}`).then((visitor) => {
@@ -1429,15 +1434,22 @@ function App() {
       setI(Math.min(visitor.progress || 0, STEPS.length - 1));
     }).catch((error) => {
       if (cancelled) return;
-      if (error.message === 'Visitor not found') localStorage.removeItem('leadId');
+      if (error.message === 'Visitor not found') removeSessionItem('leadId');
       else setToast(`Could not resume visitor: ${error.message}`);
     });
     return () => { cancelled = true; };
   }, [authUser]);
   useEffect(() => {
-    const id = localStorage.getItem(AUDIO_RECORDING_ID_KEY);
-    const token = localStorage.getItem(AUDIO_RECORDING_TOKEN_KEY);
-    if (!id || !token) return undefined;
+    if (!authUser) {
+      updateRecording({ id: '', token: '', status: 'idle', error: '', uploadWarning: '' });
+      return undefined;
+    }
+    const id = getSessionItem(AUDIO_RECORDING_ID_KEY);
+    const token = getSessionItem(AUDIO_RECORDING_TOKEN_KEY);
+    if (!id || !token) {
+      updateRecording({ id: '', token: '', status: 'idle', error: '', uploadWarning: '' });
+      return undefined;
+    }
     let cancelled = false;
     const session = { id, token, sampleRate: AUDIO_SAMPLE_RATE };
     api(`/api/recordings/${id}/status`, { headers: recordingHeaders(session) }).then(async (status) => {
@@ -1449,7 +1461,7 @@ function App() {
       }
       session.sampleRate = status.sample_rate;
       chunkIndexRef.current = status.next_index;
-      const finishPending = localStorage.getItem(AUDIO_RECORDING_FINISH_KEY) === id;
+      const finishPending = getSessionItem(AUDIO_RECORDING_FINISH_KEY) === id;
       updateRecording({
         ...session, status: finishPending ? 'stopped_pending' : 'needs_resume',
         error: '', uploadWarning: '',
@@ -1462,12 +1474,12 @@ function App() {
       }));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [authUser]);
   useEffect(() => {
     const retryUploads = () => {
       const session = recordingRef.current;
       if (!session.id || !session.token) return;
-      if (localStorage.getItem(AUDIO_RECORDING_FINISH_KEY) === session.id) finishPendingRecording(session);
+      if (getSessionItem(AUDIO_RECORDING_FINISH_KEY) === session.id) finishPendingRecording(session);
       else uploadQueuedAudio(session);
     };
     const resumeAfterVisibility = () => {
@@ -1561,7 +1573,7 @@ function App() {
       setToast('Complete the current visitor session before starting another.');
       return;
     }
-    localStorage.removeItem('leadId');
+    removeSessionItem('leadId');
     clearRecordingStorage();
     updateRecording({ id: '', token: '', status: 'idle', error: '', uploadWarning: '' });
     setLead({});
@@ -1587,6 +1599,9 @@ function App() {
       try {
         await api('/api/auth/logout', send('POST', {}));
         setAuthUser(null);
+        setLead({});
+        setI(0);
+        updateRecording({ id: '', token: '', status: 'idle', error: '', uploadWarning: '' });
         setLoginDialogOpen(true);
       } catch (error) {
         setToast(`Could not sign out: ${error.message}`);
@@ -1678,6 +1693,7 @@ function App() {
   const acknowledged = s.key === 'terms' || !!(lead.acknowledgments || {})[s.key];
   const body = {
     register: <RegisterSlide lead={lead} setLead={setLead} onNew={newVisitor} onStart={() => go(1)}
+      onLeadCreated={(id) => setSessionItem('leadId', id)}
       recording={recording} retentionDays={cfg.audio_retention_days}
       onStartSession={startRecordingSession} onResumeSession={() => resumeRecordingSession()}
       onContinueSession={continueSession} />,

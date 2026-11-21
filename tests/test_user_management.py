@@ -70,6 +70,53 @@ class UserManagementTests(unittest.TestCase):
             403,
         )
 
+    def test_developer_counselling_records_are_isolated_from_branch_visitors(self):
+        developer = self.client_as("developer", "developer-preview@example.test", BRANCH)
+        recording = developer.post("/api/recordings", json={"consent": True}).get_json()
+        with main.db() as con:
+            row = con.execute(
+                "SELECT branch_id FROM audio_recordings WHERE id=?", (recording["id"],)
+            ).fetchone()
+        self.assertIsNone(row["branch_id"])
+
+        created = developer.post("/api/leads", json={
+            "name": "Preview Visitor",
+            "phone": "6123456789",
+            "recording_id": recording["id"],
+            "recording_token": recording["token"],
+        })
+        self.assertEqual(created.status_code, 201, created.get_json())
+        with main.db() as con:
+            row = con.execute(
+                "SELECT branch_id FROM leads WHERE id=?", (created.get_json()["id"],)
+            ).fetchone()
+        self.assertIsNone(row["branch_id"])
+
+        manager = self.client_as("orientation_manager", "manjeri@example.test", BRANCH)
+        self.assertEqual(manager.get("/api/admin/leads").get_json(), [])
+        self.assertEqual(manager.get("/api/admin/report").get_json()["visitors"], [])
+
+    def test_orientation_managers_in_same_branch_only_access_their_own_visitors(self):
+        first = self.client_as("orientation_manager", "first-counsellor@example.test", BRANCH)
+        recording = first.post("/api/recordings", json={"consent": True}).get_json()
+        created = first.post("/api/leads", json={
+            "name": "First Visitor",
+            "phone": "6123456789",
+            "recording_id": recording["id"],
+            "recording_token": recording["token"],
+        })
+        self.assertEqual(created.status_code, 201, created.get_json())
+        lead_id = created.get_json()["id"]
+        self.assertEqual(len(first.get("/api/admin/leads").get_json()), 1)
+
+        second = self.client_as("orientation_manager", "second-counsellor@example.test", BRANCH)
+        self.assertEqual(second.get("/api/admin/leads").get_json(), [])
+        self.assertEqual(second.get(f"/api/leads/{lead_id}").status_code, 403)
+        self.assertEqual(second.patch(f"/api/leads/{lead_id}", json={"progress": 3}).status_code, 403)
+
+        branch_manager = self.client_as("branch_manager", "branch-manager@example.test", BRANCH)
+        self.assertEqual(len(branch_manager.get("/api/admin/leads").get_json()), 1)
+
     def test_branch_manager_can_manage_only_allowed_branch_users(self):
         client = self.client_as("branch_manager", "manager@example.test", BRANCH)
         response = client.post("/api/users", json={
