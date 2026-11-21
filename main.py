@@ -93,7 +93,7 @@ class Permission:
 
 PERMISSION_DEFINITIONS = (
     (Permission.VISITOR_CREATE, "Start a visitor session", "Visitors"),
-    (Permission.VISITOR_VIEW_BRANCH, "View unfinished visitors in the assigned branch", "Visitors"),
+    (Permission.VISITOR_VIEW_BRANCH, "View permitted visitors in the assigned branch; branch managers can view all", "Visitors"),
     (Permission.VISITOR_VIEW_ALL, "View visitors across all branches", "Visitors"),
     (Permission.VISITOR_RESUME, "Resume and update an unfinished visitor", "Visitors"),
     (Permission.USER_VIEW_OWN_BRANCH, "View users in the assigned branch", "Users"),
@@ -519,7 +519,13 @@ def require_lead_access(lead_id, permission, user=None, con=None):
                 and row["created_by_user_id"] != user["id"]):
             abort(403, "Visitor belongs to another counsellor")
         data = json.loads(row["data"] or "{}")
-        if data.get("status", "in_progress") != "in_progress":
+        status = data.get("status", "in_progress")
+        if status == "booked":
+            if permission == Permission.VISITOR_RESUME:
+                abort(403, "Booked visitors are read-only")
+            if user["role_key"] not in {"branch_manager", "orientation_manager"}:
+                abort(403, "Only unfinished visitors can be accessed in your branch")
+        elif status != "in_progress":
             abort(403, "Only unfinished visitors can be accessed in your branch")
     return row
 
@@ -1600,6 +1606,8 @@ def visible_lead_rows(user, con):
     ).fetchall()
     if user["role_key"] == "orientation_manager":
         rows = [row for row in rows if row["created_by_user_id"] == user["id"]]
+    if user["role_key"] in {"branch_manager", "orientation_manager"}:
+        return rows
     return [row for row in rows if json.loads(row["data"] or "{}").get("status", "in_progress") == "in_progress"]
 
 
@@ -1621,8 +1629,7 @@ def admin_leads():
 def admin_report():
     """Aggregate-friendly visitor rows for the Reports tab (no phone numbers).
 
-    Users with visitor.view_all get every branch; branch-scoped users get only their own branch,
-    including booked visitors, because the report only shows counts and amounts.
+    Users with visitor.view_all get every branch; branch-scoped users get their allowed visitors.
     """
     user = current_user()
     permissions = effective_permissions(user["id"])
@@ -1632,13 +1639,30 @@ def admin_report():
     all_branches = is_developer or Permission.VISITOR_VIEW_ALL in permissions
     with db() as con:
         if all_branches:
-            rows = con.execute("SELECT * FROM leads ORDER BY created, rowid").fetchall()
+            rows = con.execute(
+                """SELECT leads.*, users.name AS visit_owner_name
+                   FROM leads LEFT JOIN users ON users.id=leads.created_by_user_id
+                   ORDER BY leads.created, leads.rowid"""
+            ).fetchall()
             branches = con.execute("SELECT id, name FROM branches WHERE active=1 ORDER BY rowid").fetchall()
         else:
             if not user["branch_id"]:
                 abort(403, "You do not have permission to view visitors")
-            rows = con.execute("SELECT * FROM leads WHERE branch_id=? ORDER BY created, rowid",
-                               (user["branch_id"],)).fetchall()
+            if user["role_key"] == "orientation_manager":
+                rows = con.execute(
+                    """SELECT leads.*, users.name AS visit_owner_name
+                       FROM leads LEFT JOIN users ON users.id=leads.created_by_user_id
+                       WHERE leads.branch_id=? AND leads.created_by_user_id=?
+                       ORDER BY leads.created, leads.rowid""",
+                    (user["branch_id"], user["id"]),
+                ).fetchall()
+            else:
+                rows = con.execute(
+                    """SELECT leads.*, users.name AS visit_owner_name
+                       FROM leads LEFT JOIN users ON users.id=leads.created_by_user_id
+                       WHERE leads.branch_id=? ORDER BY leads.created, leads.rowid""",
+                    (user["branch_id"],),
+                ).fetchall()
             branches = con.execute("SELECT id, name FROM branches WHERE id=?", (user["branch_id"],)).fetchall()
         rec_rows = con.execute(
             "SELECT lead_id, COUNT(*) AS n FROM audio_recordings WHERE lead_id IS NOT NULL GROUP BY lead_id"
@@ -1664,6 +1688,7 @@ def admin_report():
             "course": data.get("course") or None, "payment": data.get("payment") or None,
             "amount": number(data.get("booking_amount")), "batch": (data.get("batch") or "").split(",")[0] or None,
             "branch_id": row["branch_id"], "recordings": rec_counts.get(row["id"], 0),
+            "visit_owner_name": row["visit_owner_name"],
         })
     return jsonify(
         today=datetime.now().date().isoformat(), visitors=visitors,

@@ -179,13 +179,27 @@
     return panel('c12', 'Visits by branch', 'Selected report date: ' + fmtDay(TODAY) + ' ' + TODAY.slice(0, 4) + '. Totals include visitors registered on or before that date.', tableScroll(table));
   }
   function branchPanel(rows, span) {
-    const nb = rows.filter((v) => !v.br).length;
-    const per = DATA.branches.map((b) => [b.name, rows.filter((v) => v.br === b.id).length]).filter((d) => d[1] > 0).sort((a, b) => b[1] - a[1]);
-    const data = [['No branch', nb, C.coral], ...per.slice(0, 4)];
-    const rest = per.slice(4).reduce((s, d) => s + d[1], 0);
-    if (rest) data.push(['Other branches', rest]);
-    return panel(span || 'c6', 'Visitors by branch', 'Branch saved on the visitor record',
-      well(hbars(data, C.teal, rows.length || 1)) + (nb ? `<div class="sub">${nb} visitors cannot be reported by branch until a branch is saved with them.</div>` : ''));
+    if (DATA.scope === 'all') {
+      const noBranch = rows.filter((visitor) => !visitor.br).length;
+      const perBranch = DATA.branches.map((branch) => [
+        branch.name, rows.filter((visitor) => visitor.br === branch.id).length,
+      ]).filter((entry) => entry[1] > 0).sort((a, b) => b[1] - a[1]);
+      const data = noBranch ? [['No branch', noBranch, C.coral], ...perBranch] : perBranch;
+      if (!data.length) data.push(['No visits', 0, C.coral]);
+      return panel(span || 'c6', 'Visitors by branch', 'Visit count for each branch',
+        well(hbars(data, C.teal, rows.length || 1)));
+    }
+
+    const ownerNames = [...new Set(rows.map((visitor) => visitor.owner).filter(Boolean))];
+    const per = ownerNames.map((name) =>
+      [name, rows.filter((visitor) => visitor.owner === name).length]
+    ).filter((entry) => entry[1] > 0).sort((a, b) => b[1] - a[1]);
+    const data = per.slice(0, 5);
+    const rest = per.slice(5).reduce((sum, entry) => sum + entry[1], 0);
+    if (rest) data.push(['Other staff', rest]);
+    if (!data.length) data.push(['No visits', 0, C.coral]);
+    return panel(span || 'c6', 'Visit count by staff member', 'Visits recorded by each user for the selected branch and date range',
+      well(hbars(data, C.teal, rows.length || 1)));
   }
 
   /* ---------- role views ---------- */
@@ -229,6 +243,7 @@
   V.developer = (rows) => kpis(rows) + viewGrid(VIEW_CARD_CONFIG.developer, rows);
   V.branch_manager = (rows) => kpis(rows) + `<div class="grid fit">
       ${funnelPanel(rows, 'c5')}${dayPanel(rows, 'c7')}
+      ${branchPanel(rows, 'c6')}
       ${mixPanel(rows, 'Course choice', 'Visitors who chose a course', (v) => v.co, [C.ink, C.teal], ['laptop', 'smartphone'])}
       ${mixPanel(rows, 'Payment route', 'Visitors who chose a route', (v) => v.pa, [C.coral, C.amber, C.teal], ['mix', 'cash', 'loan'])}
       ${amountPanel(rows)}
@@ -681,7 +696,8 @@
     DATA = d;
     ALL = d.visitors.map((v, i) => {
       const o = { nm: v.name, n: 'V-' + String(i + 1).padStart(2, '0'), c: v.created, u: v.updated || v.created, q: v.qualification, pl: v.has_place,
-        s: v.status, st: v.step, co: v.course, pa: v.payment, am: v.amount, ba: v.batch, br: v.branch_id, rec: v.recordings };
+        s: v.status, st: v.step, co: v.course, pa: v.payment, am: v.amount, ba: v.batch, br: v.branch_id, rec: v.recordings,
+        owner: v.visit_owner_name };
       o.mins = Math.max(0, Math.round((new Date(o.u) - new Date(o.c)) / 60000)) || 0;
       o.day = o.c.slice(0, 10);
       return o;
