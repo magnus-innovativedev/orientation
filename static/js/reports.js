@@ -16,6 +16,7 @@
   let apiGet = null, onError = () => {}, onDashboard = () => {}, onStatus = () => {};
   let root = null, headerRoot = null, viewsRoot = null, filtersRoot = null, DATA = null, ALL = [], view = 'developer', views = [], status = 'all', section = 'overview', recordsView = false;
   let branchFilter = '', branchOptions = [], branchDropdownOpen = false, branchActiveIndex = 0, branchTypeahead = '', branchTypeaheadTimer = null;
+  let dateStart = '', dateEnd = '', datePreset = 'all', dateDraftStart = '', dateDraftEnd = '', datePickerOpen = false, datePickerMonth = null;
   let soundEnabled = true;
   try { soundEnabled = localStorage.getItem(SOUND_PREFERENCE_KEY) !== 'false'; }
   catch (error) { console.error('Could not read the sound preference.', error); }
@@ -24,24 +25,44 @@
   const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
   const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '0%');
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+  const PAYMENT_LABELS = Object.freeze({ cash: 'Cash', loan: 'Pure loan', mix: 'Loan + Cash' });
   const fmtDay = (d) => new Date(d + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const fmtDT = (s) => fmtDay(s.slice(0, 10)) + ', ' + s.slice(11, 16);
   const count = (rows, f) => { const m = new Map(); rows.forEach((r) => { const k = f(r); m.set(k, (m.get(k) || 0) + 1); }); return m; };
 
   /* ---------- charts ---------- */
+  /* 3D tube donut: metallic silver + navy slices, thin separators, soft shadow (matches the reference). */
+  const DONUT_FILL = [['#ffffff', '#8a909b'], ['#3a70b4', '#0f2c58'], ['#7fa3d8', '#2f5c9e']];
+  const DONUT_DOT = ['#b4b9c3', '#1b447f', '#4f7cc0'];
+  let donutN = 0;
   function donut(data, colors, center, unit) {
     const tot = data.reduce((s, d) => s + d[1], 0);
     if (!tot) return '<div class="empty">No data in this view</div>';
-    const R = 62, r = 40; let a = -Math.PI / 2, out = '';
+    const uid = 'dn' + (++donutN), R = 62, r = 36; let a = -Math.PI / 2, out = '', defs = '';
+    data.forEach((d, ci) => {
+      const c = DONUT_FILL[ci % DONUT_FILL.length];
+      defs += `<linearGradient id="${uid}g${ci}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient>`;
+    });
+    const p = (ang, rad) => [80 + rad * Math.cos(ang), 80 + rad * Math.sin(ang)];
+    const arc = (a0, a1) => {
+      const l = (a1 - a0) > Math.PI ? 1 : 0, [x1, y1] = p(a0, R), [x2, y2] = p(a1, R), [x3, y3] = p(a1, r), [x4, y4] = p(a0, r);
+      return `M${x1} ${y1}A${R} ${R} 0 ${l} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${l} 0 ${x4} ${y4}Z`;
+    };
     data.forEach((d, ci) => {
       if (!(d[1] > 0)) return;
-      const f = d[1] / tot, b = a + Math.min(f, 0.9999) * 2 * Math.PI, l = f > 0.5 ? 1 : 0;
-      const p = (ang, rad) => [80 + rad * Math.cos(ang), 80 + rad * Math.sin(ang)];
-      const [x1, y1] = p(a, R), [x2, y2] = p(b, R), [x3, y3] = p(b, r), [x4, y4] = p(a, r);
-      out += `<path class="seg" data-k="${ci}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> (${(f * 100).toFixed(1)}%)" data-pc="${Math.round(f * 100)}%" d="M${x1} ${y1}A${R} ${R} 0 ${l} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${l} 0 ${x4} ${y4}Z" fill="${colors[ci]}" stroke="#FFFFFF" stroke-width="3"/>`;
+      const f = d[1] / tot, b = a + Math.min(f, 0.9999) * 2 * Math.PI;
+      out += `<path class="seg" data-k="${ci}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> (${(f * 100).toFixed(1)}%)" data-pc="${Math.round(f * 100)}%" d="${arc(a, b)}" fill="url(#${uid}g${ci})"/>`;
       a = b;
     });
-    return `<svg class="dn" viewBox="0 0 160 160" width="150" role="img" aria-label="Donut chart"><g>${out}</g><text class="cv" x="80" y="80" text-anchor="middle" style="font:700 24px Outfit,Arial,sans-serif;fill:#2A1D17">${center}</text><text class="cu" x="80" y="97" text-anchor="middle" style="fill:#8A7A70">${unit}</text></svg>`;
+    /* tube shading over every slice: dark inner edge, bright crest, dark outer edge */
+    const m0 = r / R, mid = (r + (R - r) * 0.38) / R;
+    defs += `<radialGradient id="${uid}t" gradientUnits="userSpaceOnUse" cx="80" cy="80" r="${R}"><stop offset="${m0}" stop-color="#000" stop-opacity=".30"/><stop offset="${mid}" stop-color="#fff" stop-opacity=".16"/><stop offset="${(mid + 1) / 2 + .04}" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".30"/></radialGradient>`;
+    defs += `<filter id="${uid}s" x="-25%" y="-20%" width="150%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="4.5" flood-color="#0b2147" flood-opacity=".38"/></filter>`;
+    const tube = `<path class="gloss" fill-rule="evenodd" d="M80 ${80 - R}A${R} ${R} 0 1 1 79.99 ${80 - R}ZM80 ${80 - r}A${r} ${r} 0 1 0 80.01 ${80 - r}Z" fill="url(#${uid}t)"/>`;
+    /* thin separator lines between slices */
+    let sep = '', ang = -Math.PI / 2;
+    if (data.filter((d) => d[1] > 0).length > 1) data.forEach((d) => { if (!(d[1] > 0)) return; const [x1, y1] = p(ang, r), [x2, y2] = p(ang, R); sep += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#10264a" stroke-opacity=".55" stroke-width="1.4"/>`; ang += d[1] / tot * 2 * Math.PI; });
+    return `<svg class="dn" viewBox="0 0 160 160" width="140" role="img" aria-label="Donut chart"><defs>${defs}</defs><g filter="url(#${uid}s)">${out}${tube}${sep}</g><circle cx="80" cy="80" r="${r}" fill="none" stroke="rgba(16,38,74,.45)" stroke-width="1.2"/><circle cx="80" cy="80" r="${R}" fill="none" stroke="rgba(16,38,74,.45)" stroke-width="1.2"/><text class="cv" x="80" y="80" text-anchor="middle" style="font:700 24px Outfit,Arial,sans-serif;fill:var(--mocha-ink)">${center}</text><text class="cu" x="80" y="97" text-anchor="middle" style="fill:var(--mocha-muted)">${unit}</text></svg>`;
   }
   const legend = (data, colors) => `<div class="legend" style="flex-direction:column;gap:8px">${data.map((d, i) => `<span class="lg" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b>"><i style="background:${colors[i]}"></i>${esc(d[0])} · <b style="color:var(--ink)">${d[1]}</b></span>`).join('')}</div>`;
   function hbars(data, color, max, fmt) {
@@ -52,7 +73,7 @@
     return `<svg viewBox="0 0 ${W} ${h}" width="100%" role="img">${data.map((d, i) => {
       const y = i * rowH + 4, w = d[1] ? Math.max(4, trackW * d[1] / max) : 0;
       const outlier = d[1] > max ? ' *' : '';
-      return `<g class="row" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${fmt(d[1])}</b>"><rect x="0" y="${y - 2}" width="${W}" height="${rowH - 2}" fill="transparent"/><text x="0" y="${y + 16}">${esc(d[0])}</text><rect x="${lw}" y="${y + 8}" width="${trackW}" height="10" rx="5" fill="#E4D9D0"/><rect class="hb" style="animation-delay:${0.35 + i * 0.05}s" x="${lw}" y="${y + 8}" width="${w ? Math.min(w, trackW) : 0}" height="10" rx="5" fill="${d[2] || color}"/><text x="${W - 16}" y="${y + 16}" text-anchor="end" style="fill:#2A1D17;font-weight:700">${fmt(d[1])}${outlier}</text></g>`;
+      return `<g class="row" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${fmt(d[1])}</b>"><rect x="0" y="${y - 2}" width="${W}" height="${rowH - 2}" fill="transparent"/><text x="0" y="${y + 16}">${esc(d[0])}</text><rect x="${lw}" y="${y + 6}" width="${trackW}" height="15" rx="7.5" fill="var(--mocha-track)"/><rect class="hb" style="animation-delay:${0.35 + i * 0.05}s" x="${lw}" y="${y + 6}" width="${w ? Math.min(w, trackW) : 0}" height="15" rx="7.5" fill="${d[2] || color}"/><rect class="hb gloss" style="animation-delay:${0.35 + i * 0.05}s" x="${lw}" y="${y + 6}" width="${w ? Math.min(w, trackW) : 0}" height="15" rx="7.5" fill="url(#nvGloss)"/><text x="${W - 16}" y="${y + 16}" text-anchor="end" style="fill:var(--mocha-ink);font-weight:700">${fmt(d[1])}${outlier}</text></g>`;
     }).join('')}</svg>`;
   }
   function vbars(data, color) {
@@ -62,16 +83,16 @@
     data.forEach((d, i) => {
       const x = gap + i * (bw + gap), h = d[1] / max * 120;
       const barColor = d[1] === 0 ? C.sand : d[1] === max ? C.coral : C.amber;
-      g += `<g class="col" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="${barColor}"/><text x="${x + bw / 2}" y="${base - h - 7}" text-anchor="middle" style="fill:#2A1D17;font-weight:700">${d[1]}</text><text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:10px;fill:#8A7A70">${esc(d[0])}</text></g>`;
+      g += `<g class="col" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="${barColor}"/><rect class="vb gloss" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="url(#nvGlossV)"/><text x="${x + bw / 2}" y="${base - h - 7}" text-anchor="middle" style="fill:var(--mocha-ink);font-weight:700">${d[1]}</text><text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:12px;fill:var(--mocha-muted)">${esc(d[0])}</text></g>`;
     });
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">${g}</svg>`;
   }
   function funnel(steps) {
     if (!steps[0][1]) return '<div class="empty">No visitors in this view</div>';
-    const W = 420, max = steps[0][1], cols = [C.teal, C.rust, C.ink, C.booked];
+    const W = 420, max = steps[0][1], cols = [C.coral, C.coral, C.coral, C.coral];
     return `<svg viewBox="0 0 ${W} ${steps.length * 46}" width="100%" role="img">${steps.map((s, i) => {
       const w = Math.max(60, (W - 20) * s[1] / max), x = (W - w) / 2, y = i * 46;
-      return `<g class="stp" data-k="${i}" data-t="${esc(s[0])}" data-v="<b>${s[1]}</b> (${Math.round(s[1] / max * 100)}% of registered)"><rect class="fb" style="animation-delay:${0.4 + i * 0.12}s" x="${x}" y="${y + 4}" width="${w}" height="36" rx="12" fill="${cols[i % 4]}"/><text x="${W / 2}" y="${y + 27}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:13px">${s[0]} · ${s[1]}</text></g>`;
+      return `<g class="stp" data-k="${i}" data-t="${esc(s[0])}" data-v="<b>${s[1]}</b> (${Math.round(s[1] / max * 100)}% of registered)"><rect class="fb" style="animation-delay:${0.4 + i * 0.12}s" x="${x}" y="${y + 4}" width="${w}" height="36" rx="12" fill="${cols[i % 4]}"/><rect class="fb gloss" style="animation-delay:${0.4 + i * 0.12}s" x="${x}" y="${y + 4}" width="${w}" height="36" rx="12" fill="url(#nvGloss)"/><text x="${W / 2}" y="${y + 27}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:13px">${s[0]} · ${s[1]}</text></g>`;
     }).join('')}</svg>`;
   }
   const tile = (cls, l, v, n, reportStatus) => reportStatus
@@ -110,8 +131,8 @@
     return panel(span || 'c7', 'Visitors by day', 'New visitor sessions registered each day' + (span_ === MAX ? ', last ' + MAX + ' days' : ''), well(vbars(data, C.coral)));
   }
   function mixPanel(rows, t, sub, f, cols, order, span) {
-    const m = count(rows.filter((v) => f(v)), f), data = order.map((k) => [cap(k), m.get(k) || 0]), tot = data.reduce((s, d) => s + d[1], 0);
-    return panel(span || 'c4', t, sub, `<div class="well chart" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${donut(data, cols, tot, 'chose')}${legend(data, cols)}</div>`);
+    const m = count(rows.filter((v) => f(v)), f), data = order.map((k) => [t === 'Payment route' ? (PAYMENT_LABELS[k] || cap(k)) : cap(k), m.get(k) || 0]), tot = data.reduce((s, d) => s + d[1], 0);
+    return panel(span || 'c4', t, sub, `<div class="well chart" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${donut(data, cols, tot, 'chose')}${legend(data, DONUT_DOT)}</div>`);
   }
   function qualPanel(rows, span) {
     const order = ['10th / SSLC', '12th / Plus Two', 'Diploma', 'Degree'], m = count(rows, (v) => v.q || 'Not recorded');
@@ -138,9 +159,14 @@
     const list = [...rows].sort((a, b) => b.c.localeCompare(a.c));
     const body = list.length ? `<div class="scroll"><table><thead><tr><th>Visitor</th><th>Registered</th><th class="num">Minutes</th><th>Qualification</th><th>Course</th><th>Payment</th><th class="num">Amount</th>${showStep ? '<th class="num">Saved step</th>' : ''}<th>Audio</th><th>Stage</th></tr></thead><tbody>${list.map((v) => {
       const [s, c] = stage(v);
-      return `<tr><td><b>${esc(v.nm)}</b> <span style="color:var(--ink-3);font-size:11.5px">${v.n}</span></td><td>${fmtDT(v.c)}</td><td class="num">${v.mins}</td><td>${esc(v.q || '–')}</td><td>${v.co ? esc(cap(v.co)) : '–'}</td><td>${v.pa ? esc(cap(v.pa)) : '–'}</td><td class="num">${v.am ? inr(v.am) : '–'}</td>${showStep ? `<td class="num">${v.st}</td>` : ''}<td>${v.rec ? v.rec + ' rec.' : '–'}</td><td><span class="chip ${c}">${s}</span></td></tr>`;
+      return `<tr><td><b>${esc(v.nm)}</b> <span style="color:var(--ink-3);font-size:11.5px">${v.n}</span></td><td>${fmtDT(v.c)}</td><td class="num">${v.mins}</td><td>${esc(v.q || '–')}</td><td>${v.co ? esc(cap(v.co)) : '–'}</td><td>${v.pa ? esc(PAYMENT_LABELS[v.pa] || cap(v.pa)) : '–'}</td><td class="num">${v.am ? inr(v.am) : '–'}</td>${showStep ? `<td class="num">${v.st}</td>` : ''}<td>${v.rec ? v.rec + ' rec.' : '–'}</td><td><span class="chip ${c}">${s}</span></td></tr>`;
     }).join('')}</tbody></table></div>` : '<div class="well empty">No visitors in this view</div>';
-    return panel('c12', title, sub, body);
+    return panel('c12', title, sub, tableScroll(body));
+  }
+  function tableScroll(body) {
+    return `<div class="report-table-shell">
+      <div class="report-table-scroll"><div class="report-table-area">${body}</div></div>
+    </div>`;
   }
   function branchTable(rows) {
     const TODAY = document.querySelector('#report-date-filter')?.value || DATA.today;
@@ -149,7 +175,8 @@
     const known = new Set(DATA.branches.map((b) => b.id));
     const body = DATA.branches.map((b) => line(b.name, rows.filter((v) => v.br === b.id))).join('') + line('No branch saved', rows.filter((v) => !v.br || !known.has(v.br)));
     const tt = rows.filter((v) => v.day === TODAY).length;
-    return panel('c12', 'Visits by branch', 'Selected report date: ' + fmtDay(TODAY) + ' ' + TODAY.slice(0, 4) + '. Totals include visitors registered on or before that date.', `<div class="scroll"><table style="min-width:560px"><thead><tr><th>Branch name</th><th class="num">Visits on selected date</th><th class="num">Total visits</th><th class="num">Booking amount on selected date</th><th class="num">Total booking amount</th></tr></thead><tbody>${body}<tr><td><b>All branches</b></td><td class="num"><b>${tt}</b></td><td class="num"><b>${rows.length}</b></td><td class="num"><b>${inr(amt(rows, true))}</b></td><td class="num"><b>${inr(amt(rows, false))}</b></td></tr></tbody></table></div>`);
+    const table = `<div class="scroll"><table style="min-width:560px"><thead><tr><th>Branch name</th><th class="num">Visits on selected date</th><th class="num">Total visits</th><th class="num">Booking amount on selected date</th><th class="num">Total booking amount</th></tr></thead><tbody>${body}<tr><td><b>All branches</b></td><td class="num"><b>${tt}</b></td><td class="num"><b>${rows.length}</b></td><td class="num"><b>${inr(amt(rows, true))}</b></td><td class="num"><b>${inr(amt(rows, false))}</b></td></tr></tbody></table></div>`;
+    return panel('c12', 'Visits by branch', 'Selected report date: ' + fmtDay(TODAY) + ' ' + TODAY.slice(0, 4) + '. Totals include visitors registered on or before that date.', tableScroll(table));
   }
   function branchPanel(rows, span) {
     const nb = rows.filter((v) => !v.br).length;
@@ -220,7 +247,9 @@
   function scoped() {
     const reportDate = document.querySelector('#report-date-filter')?.value || DATA.today;
     return ALL.filter((v) => (status === 'all' || (status === 'booked' ? v.s === 'booked' : v.s !== 'booked'))
-      && (!branchFilter || v.br === branchFilter) && v.day <= reportDate);
+      && (!branchFilter || v.br === branchFilter)
+      && (!dateStart || v.day >= dateStart)
+      && (!dateEnd || v.day <= dateEnd));
   }
   function setupSoundToggle() {
     window.magnusSoundEnabled = soundEnabled;
@@ -418,10 +447,156 @@
       jumpToBranchOption(event.key);
     }
   }
+  const dateLocal = (date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+  function addDays(value, days) {
+    const d = new Date(value + 'T00:00');
+    d.setDate(d.getDate() + days);
+    return dateLocal(d);
+  }
+  function monthStart(value) { return value.slice(0, 7) + '-01'; }
+  function monthEnd(value) {
+    const d = new Date(value.slice(0, 7) + '-01T00:00');
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return dateLocal(d);
+  }
+  function setDatePreset(preset) {
+    const today = DATA?.today || dateLocal(new Date());
+    const earliest = ALL.length ? ALL.reduce((min, v) => v.day < min ? v.day : min, ALL[0].day) : today;
+    datePreset = preset;
+    if (preset === 'all') { dateStart = ''; dateEnd = today; }
+    if (preset === 'today') { dateStart = today; dateEnd = today; }
+    if (preset === 'yesterday') { dateStart = addDays(today, -1); dateEnd = dateStart; }
+    if (preset === '7') { dateStart = addDays(today, -6); dateEnd = today; }
+    if (preset === '30') { dateStart = addDays(today, -29); dateEnd = today; }
+    if (preset === 'month') { dateStart = monthStart(today); dateEnd = today; }
+    if (preset === 'last-month') {
+      const first = new Date(monthStart(today) + 'T00:00');
+      first.setMonth(first.getMonth() - 1);
+      dateStart = dateLocal(first);
+      dateEnd = monthEnd(dateStart);
+    }
+    if (preset === 'custom') { dateStart = dateDraftStart || earliest; dateEnd = dateDraftEnd || today; }
+  }
+  function renderDateCalendar(parent, month) {
+    parent.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'date-calendar-header';
+    head.textContent = new Date(month + '-01T00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const grid = document.createElement('div');
+    grid.className = 'date-calendar-grid';
+    ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((day) => {
+      const label = document.createElement('div');
+      label.className = 'date-weekday';
+      label.textContent = day;
+      grid.append(label);
+    });
+    const first = new Date(month + '-01T00:00');
+    const offset = first.getDay();
+    const last = new Date(first);
+    last.setMonth(last.getMonth() + 1);
+    last.setDate(0);
+    for (let i = 0; i < offset; i++) {
+      const blank = document.createElement('button');
+      blank.type = 'button'; blank.className = 'date-day outside'; blank.tabIndex = -1;
+      grid.append(blank);
+    }
+    for (let day = 1; day <= last.getDate(); day++) {
+      const value = month + '-' + String(day).padStart(2, '0');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'date-day';
+      button.dataset.date = value;
+      button.textContent = day;
+      if (value === dateDraftStart || value === dateDraftEnd) button.classList.add(value === dateDraftStart ? 'range-start' : 'range-end');
+      if (dateDraftStart && dateDraftEnd && value > dateDraftStart && value < dateDraftEnd) button.classList.add('in-range');
+      if (value > (DATA?.today || dateLocal(new Date()))) button.disabled = true;
+      grid.append(button);
+    }
+    parent.append(head, grid);
+  }
+  function syncDatePicker() {
+    const popover = document.querySelector('#date-range-popover');
+    if (!popover) return;
+    popover.querySelectorAll('.date-preset').forEach((button) => button.classList.toggle('active', button.dataset.preset === datePreset));
+    const today = DATA?.today || dateLocal(new Date());
+    const base = datePickerMonth || (today.slice(0, 7));
+    const first = new Date(base + '-01T00:00');
+    const second = new Date(first); second.setMonth(second.getMonth() + 1);
+    renderDateCalendar(popover.querySelector('.date-calendar.first'), dateLocal(first).slice(0, 7));
+    renderDateCalendar(popover.querySelector('.date-calendar.second'), dateLocal(second).slice(0, 7));
+    const summary = popover.querySelector('.date-range-summary');
+    if (summary) summary.textContent = dateDraftStart && dateDraftEnd
+      ? new Date(dateDraftStart + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) +
+        ' - ' + new Date(dateDraftEnd + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : 'Pick a start and an end date';
+    const apply = popover.querySelector('.date-range-apply');
+    if (apply) apply.disabled = !(dateDraftStart && dateDraftEnd);
+  }
+  function openDatePicker() {
+    const popover = document.querySelector('#date-range-popover');
+    const trigger = document.querySelector('#date-range-trigger');
+    if (!popover || !trigger) return;
+    dateDraftStart = dateStart || '';
+    dateDraftEnd = dateEnd || DATA?.today || '';
+    popover.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    datePickerOpen = true;
+    syncDatePicker();
+  }
+  function closeDatePicker(returnFocus) {
+    const popover = document.querySelector('#date-range-popover');
+    const trigger = document.querySelector('#date-range-trigger');
+    if (popover) popover.hidden = true;
+    if (trigger) {
+      trigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) trigger.focus();
+    }
+    datePickerOpen = false;
+  }
+  function upgradeNativeDateFilter() {
+    const input = document.querySelector('#report-date-filter');
+    const oldField = input?.closest('.topbar-field');
+    if (!input || !oldField || oldField.querySelector('#date-range-picker')) return;
+    input.hidden = true;
+    oldField.classList.add('date-topbar-field');
+    const picker = document.createElement('div');
+    picker.id = 'date-range-picker';
+    picker.className = 'date-range-picker';
+    picker.innerHTML = `<button type="button" id="date-range-trigger" class="date-range-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="date-range-popover"><span id="date-range-trigger-label">All Time</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+      <div id="date-range-popover" class="date-range-popover" role="dialog" aria-label="Select date range" hidden>
+        <div class="date-preset-list">
+          <button type="button" class="date-preset" data-preset="all">All Time</button>
+          <button type="button" class="date-preset" data-preset="today">Today</button>
+          <button type="button" class="date-preset" data-preset="yesterday">Yesterday</button>
+          <button type="button" class="date-preset" data-preset="7">Last 7 days</button>
+          <button type="button" class="date-preset" data-preset="30">Last 30 days</button>
+          <button type="button" class="date-preset" data-preset="month">This month</button>
+          <button type="button" class="date-preset" data-preset="last-month">Last month</button>
+          <button type="button" class="date-preset" data-preset="custom">Custom range</button>
+        </div>
+        <div class="date-range-main">
+          <div class="date-calendars">
+            <button type="button" class="date-nav prev" aria-label="Previous month">&#8249;</button>
+            <div class="date-calendar first"></div>
+            <div class="date-calendar second"></div>
+            <button type="button" class="date-nav next" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="date-range-footer"><span class="date-range-summary">Pick a start and an end date</span><button type="button" class="date-range-cancel">Cancel</button><button type="button" class="date-range-apply" disabled>Apply</button></div>
+        </div>
+      </div>`;
+    input.replaceWith(picker);
+  }
   function syncTopbar() {
     if (!DATA) return;
+    if (!dateEnd) dateEnd = DATA.today;
     document.querySelectorAll('#dashboard-view-toggle, #report-refresh').forEach((control) => control.remove());
     upgradeNativeBranchFilter();
+    upgradeNativeDateFilter();
     const branchTrigger = document.querySelector('#report-branch-filter');
     const branchListbox = document.querySelector('#report-branch-options');
     const dateInput = document.querySelector('#report-date-filter');
@@ -435,16 +610,22 @@
       branchListbox?.setAttribute('aria-disabled', String(!allBranches));
       if (!allBranches) closeBranchDropdown(false);
     }
-    if (dateInput) {
-      dateInput.max = DATA.today;
-      if (!dateInput.value) dateInput.value = DATA.today;
-    }
+    if (dateInput) dateInput.max = DATA.today;
     const activeBranch = DATA.branches.find((b) => b.id === branchFilter);
     const scope = document.querySelector('#topbar-scope');
     if (scope) scope.textContent = activeBranch ? activeBranch.name : DATA.scope === 'all' ? 'All Branches' : DATA.branch_name || 'Your Branch';
     const dateLabel = document.querySelector('#topbar-date-label');
-    if (dateLabel) dateLabel.textContent = new Date((dateInput?.value || DATA.today) + 'T00:00')
-      .toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+    if (dateLabel) {
+      const label = datePreset === 'all' ? 'All Time' : dateStart === dateEnd
+        ? new Date((dateEnd || DATA.today) + 'T00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : `${new Date((dateStart || DATA.today) + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} - ${new Date((dateEnd || DATA.today) + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      dateLabel.textContent = label.toUpperCase();
+    }
+    const dateTriggerLabel = document.querySelector('#date-range-trigger-label');
+    if (dateTriggerLabel) {
+      const names = { all: 'All Time', today: 'Today', yesterday: 'Yesterday', '7': 'Last 7 days', '30': 'Last 30 days', month: 'This month', 'last-month': 'Last month', custom: 'Custom range' };
+      dateTriggerLabel.textContent = names[datePreset] || 'Custom range';
+    }
     const viewLabel = document.querySelector('#dashboard-view-label');
     if (viewLabel) viewLabel.textContent = view.toUpperCase() + ' VIEW';
   }
@@ -578,6 +759,73 @@
           e.preventDefault();
           selectBranch(option.dataset.value);
         }
+        const dateTrigger = e.target.closest('#date-range-trigger');
+        if (dateTrigger) {
+          e.preventDefault();
+          if (datePickerOpen) closeDatePicker(true);
+          else openDatePicker();
+          return;
+        }
+        const preset = e.target.closest('.date-preset');
+        if (preset) {
+          e.preventDefault();
+          datePreset = preset.dataset.preset;
+          if (datePreset === 'custom') {
+            dateDraftStart = '';
+            dateDraftEnd = '';
+            syncDatePicker();
+          } else {
+            setDatePreset(datePreset);
+            dateDraftStart = dateStart;
+            dateDraftEnd = dateEnd;
+            syncDatePicker();
+          }
+          return;
+        }
+        const day = e.target.closest('.date-day[data-date]');
+        if (day && !day.disabled) {
+          e.preventDefault();
+          datePreset = 'custom';
+          const value = day.dataset.date;
+          if (!dateDraftStart || dateDraftEnd) {
+            dateDraftStart = value;
+            dateDraftEnd = '';
+          } else if (value < dateDraftStart) {
+            dateDraftEnd = dateDraftStart;
+            dateDraftStart = value;
+          } else {
+            dateDraftEnd = value;
+          }
+          syncDatePicker();
+          return;
+        }
+        if (e.target.closest('.date-nav.prev')) {
+          datePickerMonth = dateLocal(new Date((datePickerMonth || DATA.today.slice(0, 7) + '-01') + 'T00:00'));
+          const d = new Date(datePickerMonth); d.setMonth(d.getMonth() - 1);
+          datePickerMonth = dateLocal(d).slice(0, 7);
+          syncDatePicker();
+          return;
+        }
+        if (e.target.closest('.date-nav.next')) {
+          datePickerMonth = dateLocal(new Date((datePickerMonth || DATA.today.slice(0, 7) + '-01') + 'T00:00'));
+          const d = new Date(datePickerMonth); d.setMonth(d.getMonth() + 1);
+          datePickerMonth = dateLocal(d).slice(0, 7);
+          syncDatePicker();
+          return;
+        }
+        if (e.target.closest('.date-range-cancel')) {
+          closeDatePicker(true);
+          return;
+        }
+        if (e.target.closest('.date-range-apply')) {
+          if (!dateDraftStart || !dateDraftEnd) return;
+          dateStart = dateDraftStart;
+          dateEnd = dateDraftEnd;
+          datePreset = 'custom';
+          closeDatePicker(false);
+          syncTopbar();
+          draw(false);
+        }
       });
       topbar.addEventListener('keydown', handleBranchDropdownKeydown);
       topbar.addEventListener('focusout', (e) => {
@@ -590,6 +838,7 @@
       document.addEventListener('click', (e) => {
         const { root: branchRoot } = branchDropdownParts();
         if (branchDropdownOpen && branchRoot && !branchRoot.contains(e.target)) closeBranchDropdown(false);
+        if (datePickerOpen && !e.target.closest('#date-range-picker')) closeDatePicker(false);
       });
     }
     if (filtersRoot) filtersRoot.addEventListener('click', (e) => {
@@ -608,15 +857,12 @@
     init(opts) {
       apiGet = opts.api; esc = opts.esc || esc; onError = opts.onError || onError; onDashboard = opts.onDashboard || onDashboard; onStatus = opts.onStatus || onStatus;
       root = opts.root; headerRoot = opts.headerRoot || null; viewsRoot = opts.viewsRoot || null; filtersRoot = opts.filtersRoot || null;
-      const token = getComputedStyle(root);
-      C.coral = token.getPropertyValue('--mocha-brown').trim();
-      C.teal = token.getPropertyValue('--mocha-teal').trim();
-      C.amber = token.getPropertyValue('--mocha-tan').trim();
-      C.leather = token.getPropertyValue('--mocha-muted-brown').trim();
-      C.sand = token.getPropertyValue('--mocha-tan').trim();
-      C.rust = token.getPropertyValue('--mocha-rust').trim();
-      C.ink = token.getPropertyValue('--mocha-ink').trim();
-      C.booked = token.getPropertyValue('--mocha-booked').trim();
+      /* Chart colours stay as CSS variables so dark and white cards each resolve them in their own context (see navy.css). */
+      if (!document.getElementById('nvGloss')) {
+        const defs = document.createElement('div');
+        defs.innerHTML = '<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="nvGloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".48" stop-color="#fff" stop-opacity=".08"/><stop offset=".52" stop-color="#000" stop-opacity=".02"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient><linearGradient id="nvGlossV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset=".35" stop-color="#fff" stop-opacity=".42"/><stop offset=".6" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient></defs></svg>';
+        document.body.appendChild(defs.firstChild);
+      }
       root.classList.add('rpt'); bind(); bindHover(); setupSoundToggle();
     },
     async load(next) {

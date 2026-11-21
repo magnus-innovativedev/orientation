@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>Magnus management</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}"></head><body>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/navy.css') }}"></head><body>
 <section id="login-panel" class="wrap" hidden>
   <h1>Magnus sign-in</h1><p class="muted">Use your assigned email and password.</p>
   <form id="login-form">
@@ -35,7 +36,7 @@
           <div id="report-branch-options" class="branch-filter-list" role="listbox" aria-label="Branches" hidden></div>
         </div>
       </div>
-      <label class="topbar-field">Date<input id="report-date-filter" type="date"></label>
+      <label class="topbar-field">Date<input id="report-date-filter" type="date" hidden></label>
       <button id="admin-theme-toggle" type="button" class="topbar-theme" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.5A8.5 8.5 0 018.5 3.5 8.5 8.5 0 1020.5 15.5Z"></path></svg></button>
     </div>
   </header>
@@ -58,7 +59,7 @@
   <section id="leads-panel" class="wrap" hidden>
     <div class="toolbar"><h2 style="flex:1">Visitors</h2><button id="csv">Download CSV</button></div>
     <div id="leads-empty" class="empty" hidden>No visitors found.</div>
-    <table id="leads-table" hidden><thead><tr id="leads-head"></tr></thead><tbody></tbody></table>
+    <div class="leads-scroll"><table id="leads-table" hidden><thead><tr id="leads-head"></tr></thead><tbody></tbody></table></div>
   </section>
   <section id="users-panel" class="wrap" hidden>
     <div class="toolbar">
@@ -224,7 +225,7 @@ function startDashboard(){
     document.querySelectorAll('#main-tabs [data-panel], #side-tabs [data-panel]').forEach(item=>item.classList.toggle('active',item.dataset.panel===key));
     const target=key==='branches'||key==='dashboard'?'reports':key;
     for(const panel of ['reports','leads','users','audit'])setVisible(`#${panel}-panel`,target===panel);
-    document.body.classList.toggle('fit',key==='dashboard'||key==='branches');
+    document.body.classList.toggle('fit',key==='dashboard'||key==='branches'||key==='leads');
     setVisible('#dock-filters',canViewDashboard);
   };
   const navigate=event=>{
@@ -380,10 +381,11 @@ async function loadLeads(){
         ?`<audio controls preload="none" src="/api/admin/lead_recording/${encodeURIComponent(lead.id)}"></audio><a href="/api/admin/lead_recording/${encodeURIComponent(lead.id)}?download=1">Download</a>`
         :canListen&&!audioSummary?'—':'';
       const audio=[audioSummary,recording].filter(Boolean).join('<br>')||'—';
+      const paymentLabel={cash:'Cash',loan:'Pure loan',mix:'Loan + Cash'}[lead.payment]||lead.payment||'';
       return `<tr>
         <td><b>${esc(lead.name)}</b>${visitor?` <span style="color:var(--ink-3);font-size:11.5px">${visitor.ref}</span>`:''}</td>
         <td>${esc(lead.phone||'')}</td><td>${esc(lead.place||'')}</td><td>${esc(lead.qualification||'')}</td>
-        <td>${esc(lead.course||'')}</td><td>${esc(lead.payment||'')}</td><td>${amount?'₹'+Number(amount).toLocaleString('en-IN'):''}</td>
+        <td>${esc(lead.course||'')}</td><td>${esc(paymentLabel)}</td><td>${amount?'₹'+Number(amount).toLocaleString('en-IN'):''}</td>
         <td>${esc(lead.batch||'')}</td><td>${esc(created.replace('T',' '))}</td><td>${minutes}</td>
         <td>${visitor?visitor.step:(lead.progress||0)}</td><td>${stage==='booked'?'Booked':'In progress'}</td>${showAudio?`<td>${audio}</td>`:''}
         <td><a href="/api/admin/lead_photo/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener">View</a></td>
@@ -504,7 +506,7 @@ function setAdminTheme(theme){
     :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.5A8.5 8.5 0 018.5 3.5 8.5 8.5 0 1020.5 15.5Z"></path></svg>';
   localStorage.setItem('admin-theme',dark?'dark':'light');
 }
-setAdminTheme(localStorage.getItem('admin-theme')||'light');
+setAdminTheme('light'); /* single navy theme */
 $('#admin-theme-toggle').addEventListener('click',()=>setAdminTheme(document.documentElement.dataset.adminTheme==='dark'?'light':'dark'));
 authenticate();
 </script></body></html>

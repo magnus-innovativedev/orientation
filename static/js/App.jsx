@@ -1395,7 +1395,7 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#EEE4DF' : '#EEE4DF');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a1a38');
   }, [theme]);
 
   const reload = () => api('/api/media').then(setMedia).catch(() => {});

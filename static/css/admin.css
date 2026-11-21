@@ -150,7 +150,7 @@ button.branch-filter-option[aria-selected="true"]:hover{background:#4A392F;color
 .dock button.active .dock-icon,.dock button[aria-pressed="true"] .dock-icon{width:46px;height:46px;margin-top:-22px;background:linear-gradient(150deg,#FFF,#EADFD9);color:var(--espresso-lo);box-shadow:0 7px 12px rgba(10,6,4,.4)}
 .dock button.active .dock-icon svg,.dock button[aria-pressed="true"] .dock-icon svg{width:21px;height:21px}
 .dock button:focus-visible{outline:3px solid #fff;outline-offset:-3px}
-.watermark{position:fixed;left:24px;bottom:22px;z-index:0;pointer-events:none;user-select:none;font-size:11px;font-weight:500;line-height:1.7;letter-spacing:.22em;text-transform:uppercase;color:rgba(90,70,60,.5)}
+.watermark{position:fixed;left:24px;bottom:22px;z-index:20;pointer-events:none;user-select:none;font-size:11px;font-weight:500;line-height:1.7;letter-spacing:.22em;text-transform:uppercase;color:rgba(90,70,60,.5)}
 @media(max-width:900px){.watermark{display:none}}
 [hidden]{display:none!important}
 @media(max-width:1100px){.topbar{flex-wrap:wrap;gap:12px;margin-left:88px}.topbar-identity{flex:1 1 100%}.topbar-controls{flex-wrap:wrap}.rail{top:16px}}
@@ -159,7 +159,6 @@ button.branch-filter-option[aria-selected="true"]:hover{background:#4A392F;color
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}/* Reports tab: one screen, no page scroll */
 body.fit{overflow:hidden;height:100dvh}
 body.fit .stage{padding-bottom:0}
-body.fit .watermark{display:none}
 @media(max-width:900px){body.fit{overflow:auto;height:auto}}
 html[data-admin-theme="dark"]{color-scheme:dark;--cream:#202A27;--cream-hi:#27332F;--ink:#EEE9E3;--ink-2:#C0B9B2;--ink-3:#9C938C;--well:#27332F}
 html[data-admin-theme="dark"] body{color:var(--ink);background:linear-gradient(160deg,#17211E 0%,#202A27 55%,#29332F 100%) fixed}
@@ -206,7 +205,7 @@ html .topbar-account,html .topbar-role,html .topbar-avatar,html .topbar-theme{di
 .topbar:not(.has-context) .topbar-controls{display:flex}
 
 .stage{padding:8px 24px 118px 88px!important}
-.rail{left:14px;top:18px;bottom:18px;width:64px;--s:40px;border:1px solid rgba(255,255,255,.08);border-radius:28px;background:linear-gradient(160deg,#49372C 0%,#33261F 58%,#211813 100%);box-shadow:0 8px 24px rgba(32,20,14,.28)}
+.rail{left:14px;top:112px;bottom:88px;width:64px;--s:40px;border:1px solid rgba(255,255,255,.08);border-radius:28px;background:linear-gradient(160deg,#49372C 0%,#33261F 58%,#211813 100%);box-shadow:0 8px 24px rgba(32,20,14,.28)}
 .rail-sep{background:rgba(246,236,230,.25)}
 .rail-btn{color:#E9DDD6}
 .rail-pill{height:40px}
@@ -226,6 +225,52 @@ html[data-admin-theme="dark"] .rail-btn:not(.rail-view-key):hover .rail-pill,htm
 html[data-admin-theme="dark"] .topbar-field select,html[data-admin-theme="dark"] .topbar-field input{box-shadow:none!important}
 html[data-admin-theme="dark"] .wrap,html[data-admin-theme="dark"] dialog{background:var(--mocha-card);color:var(--mocha-ink)}
 
+/* Date-range picker */
+.date-range-picker{position:relative;width:132px}
+.date-range-trigger{display:flex;align-items:center;justify-content:space-between;width:100%;height:40px;margin:0;padding:0 13px;border:0;border-radius:999px;background:var(--mocha-card);color:var(--mocha-ink);font:600 12px 'Outfit',Arial,sans-serif;box-shadow:0 4px 18px rgba(80,50,30,.06);cursor:pointer}
+.date-range-trigger:hover{transform:none}
+.date-range-trigger:focus-visible{outline:2px solid #2B8A78;outline-offset:2px}
+.date-range-trigger svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.date-range-popover{position:absolute;top:48px;right:0;z-index:1000;width:940px;height:420px;display:grid;grid-template-columns:190px 1fr;border:1px solid rgba(255,255,255,.08);border-radius:22px;background:linear-gradient(145deg,#09083a,#08072e 60%,#120b32);color:#fff;box-shadow:0 22px 65px rgba(0,0,0,.45);overflow:hidden}
+.date-range-popover[hidden]{display:none}
+.date-preset-list{padding:22px 14px;border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:4px}
+.date-preset{height:38px;border:0;border-radius:999px;background:transparent;color:#fff;font:600 14px 'Outfit',Arial,sans-serif;text-align:left;padding:0 18px;cursor:pointer}
+.date-preset:hover,.date-preset.active{background:rgba(255,255,255,.09)}
+.date-preset.active{box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.date-range-main{display:flex;flex-direction:column;min-width:0}
+.date-calendars{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:26px 34px 18px}
+.date-calendar{min-width:0}
+.date-calendar-header{height:28px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;font:700 15px 'Outfit',Arial,sans-serif}
+.date-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+.date-weekday{height:28px;color:#9eabe0;font-size:12px}
+.date-day{height:38px;border:0;border-radius:50%;background:transparent;color:#fff;font:700 13px 'Outfit',Arial,sans-serif;cursor:pointer}
+.date-day:hover{background:rgba(99,102,241,.45)}
+.date-day.outside{color:transparent;pointer-events:none}
+.date-day.selected,.date-day.range-start,.date-day.range-end{background:#6757cf;color:#fff}
+.date-day.in-range{background:rgba(99,102,241,.22);border-radius:6px}
+.date-nav{position:absolute;top:20px;width:36px;height:36px;border:0;background:transparent;color:#fff;display:grid;place-items:center;font-size:24px;cursor:pointer}
+.date-nav.prev{left:18px}.date-nav.next{right:18px}
+.date-range-footer{height:58px;margin-top:auto;padding:0 28px 12px 34px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:flex-end;gap:14px}
+.date-range-summary{margin-right:auto;color:#aeb8dc;font-size:13px}
+.date-range-footer button{height:36px;border:0;border-radius:999px;padding:0 18px;font:700 13px 'Outfit',Arial,sans-serif;cursor:pointer}
+.date-range-cancel{background:transparent;color:#fff}
+.date-range-apply{background:#ad8a44;color:#fff}
+.date-range-apply:disabled{opacity:.45;cursor:not-allowed}
+html[data-admin-theme="dark"] .date-range-popover{background:linear-gradient(145deg,#11191b,#0e1514 70%,#16201e)}
+@media(max-width:680px){
+  .date-range-picker{width:auto}
+  .date-range-popover{position:fixed;top:140px;right:10px;width:calc(100vw - 84px);height:390px;grid-template-columns:118px 1fr}
+  .date-preset-list{padding:16px 7px}
+  .date-preset{height:34px;padding:0 10px;font-size:11px}
+  .date-calendars{gap:8px;padding:20px 24px 12px}
+  .date-nav{display:none}
+  .date-calendar-header{font-size:12px}
+  .date-weekday{font-size:10px}
+  .date-day{height:32px;font-size:11px}
+  .date-range-footer{padding:0 12px 10px}
+  .date-range-summary{display:none}
+}
+
 @media(max-width:1024px){
   .topbar-context h2{font-size:40px!important}
   .topbar-controls{flex-wrap:nowrap}
@@ -239,7 +284,7 @@ html[data-admin-theme="dark"] .wrap,html[data-admin-theme="dark"] dialog{backgro
   .topbar-field{width:auto!important;min-width:0!important}
   .topbar-field:last-of-type{width:auto!important;min-width:0!important}
   .stage{padding:8px 10px 130px 64px!important}
-  .rail{left:8px;top:12px;bottom:12px;width:48px}
+  .rail{left:8px;top:148px;bottom:100px;width:48px}
 }
 @media(max-width:390px){
   .topbar-context h2{font-size:30px!important}
