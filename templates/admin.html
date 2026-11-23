@@ -6,10 +6,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/navy.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/screen-fit.css') }}"></head><body>
-<section id="login-panel" class="wrap" hidden>
-  <h1>Magnus sign-in</h1><p class="muted">Use your assigned email and password.</p>
-  <form id="login-form">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/screen-fit.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}"></head><body>
+<section id="login-panel" class="shared-login-backdrop" hidden>
+  <div class="shared-login-card">
+  <h1>Magnus sign-in</h1><p>Use your assigned email and password.</p>
+  <form id="login-form" class="shared-login-form">
     <label>Email<input id="login-email" type="email" autocomplete="username" required></label>
     <label>Password<span class="password-field"><input id="login-password" type="password" autocomplete="current-password" required>
       <button type="button" class="password-toggle" data-password-toggle="login-password" aria-label="Show password" title="Show password">
@@ -19,6 +21,7 @@
     <p id="login-error" class="notice error" hidden></p>
     <button type="submit">Sign in</button>
   </form>
+  </div>
 </section>
 <main id="dashboard" hidden>
   <header class="topbar">

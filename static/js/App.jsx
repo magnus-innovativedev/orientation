@@ -1673,13 +1673,12 @@ function App() {
   );
   if (!authUser) {
     return (
-      <div className="pin-dialog-backdrop">
-        <section className="pin-dialog" role="main" aria-labelledby="pin-dialog-title">
-          <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="" />
-          <h1 id="pin-dialog-title">Sign in to Magnus</h1>
-          <p>Use your assigned username (email) and password to enter the portal.</p>
-          <form className="pin-form" onSubmit={submitLogin}>
-            <label htmlFor="counsellor-email">Username (email)</label>
+      <div className="shared-login-backdrop">
+        <section className="shared-login-card" role="main" aria-labelledby="pin-dialog-title">
+          <h1 id="pin-dialog-title">Magnus sign-in</h1>
+          <p>Use your assigned email and password.</p>
+          <form className="shared-login-form" onSubmit={submitLogin}>
+            <label htmlFor="counsellor-email">Email</label>
             <input id="counsellor-email" type="email" autoComplete="username" autoFocus
               value={loginEmail} onChange={(event) => { setLoginEmail(event.target.value); setLoginError(''); }}
               aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
@@ -1695,11 +1694,9 @@ function App() {
               </button>
             </div>
             {loginError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{loginError}</p>}
-            <div className="pin-dialog-actions">
-              <button type="submit" className="btn-next" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
-                {loginBusy ? 'Signing in…' : 'Sign in'}
-              </button>
-            </div>
+            <button type="submit" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
+              {loginBusy ? 'Signing in…' : 'Sign in'}
+            </button>
           </form>
         </section>
       </div>
