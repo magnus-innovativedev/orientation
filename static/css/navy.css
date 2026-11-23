@@ -47,6 +47,9 @@ html body,html[data-admin-theme] body{
 }
 html,html body,button,input,select,html body button,html body input,html body select{font-family:'Lora',Georgia,serif}
 html,body,body *{font-family:'Lora',Georgia,serif!important}
+html body .fa-solid,html body .fas{font-family:'Font Awesome 6 Free'!important;font-weight:900}
+html body .fa-regular,html body .far{font-family:'Font Awesome 6 Free'!important;font-weight:400}
+html body .fa-brands,html body .fab{font-family:'Font Awesome 6 Brands'!important;font-weight:400}
 
 /* --- generic controls --- */
 html body button{background:var(--nv-btn);color:#fff;border:1px solid rgba(255,255,255,.28);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 6px 14px rgba(0,8,26,.45)}
