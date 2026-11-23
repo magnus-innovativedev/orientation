@@ -40,4 +40,19 @@ body,
   html body.fit .report-table-scroll {
     max-height: calc(133.333333dvh - 330px);
   }
+
+  .stage > #reports-panel .rpt:not(.one) > .rpt-view > .grid {
+    height: calc(133.333333dvh - 208px);
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .stage > #reports-panel .rpt:not(.one) > .rpt-view > .grid > .panel.c12 {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .stage > #reports-panel .rpt:not(.one) > .rpt-view > .grid > .panel.c12 .report-table-scroll {
+    max-height: none;
+  }
 }
