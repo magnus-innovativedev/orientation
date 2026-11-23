@@ -23,3 +23,21 @@ body,
     min-height: 100vh;
   }
 }
+
+@media (min-width: 1101px) {
+  html body.fit {
+    height: 133.333333dvh;
+  }
+
+  html body.fit .stage {
+    height: calc(133.333333dvh - 112px);
+  }
+
+  html body.fit .rpt.one .tiles {
+    height: clamp(112px, 16vh, 132px);
+  }
+
+  html body.fit .report-table-scroll {
+    max-height: calc(133.333333dvh - 330px);
+  }
+}
