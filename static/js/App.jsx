@@ -521,44 +521,62 @@ function RegisterSlide({
     catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   if (lead.id) return (
-    <div className="fcard welcome">
-      <h2>Welcome back, {lead.name}</h2>
-      <p>Your counselling is saved. Resume the recording to continue where you stopped.</p>
-      {!recording.id && recording.status !== 'recording' && <>
-        <p>Your session will be audio-recorded and stored securely for up to {retentionDays} days. Only authorized counsellors can access it.</p>
-        <label className="accept recording-consent">
-          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-          <span>I consent to audio recording and storage of this counselling session.</span>
-        </label>
-      </>}
-      {recording.status === 'error' && <p className="error" role="alert">{recording.error}</p>}
-      <div className="actions">
-        <button className="btn-next" disabled={recording.status === 'starting' || (!recording.id && recording.status !== 'recording' && !consent)}
-          onClick={recording.id ? onContinueSession : () => onStartSession(lead.id, consent)}>
-          <span>{recording.status === 'recording' ? 'Continue' : recording.status === 'starting' ? 'Starting…' : recording.id ? 'Resume session' : 'Start session'}</span>
-          <i className="fa-solid fa-arrow-right"></i>
-        </button>
-        {!recording.id && recording.status !== 'recording' && <button className="btn-prev" onClick={onNew}>New visitor</button>}
+    <div className="welcome-hero">
+      <div className="welcome-art">
+        <img src="/static/images/vineeth-welcome.webp" alt="Magnus counsellor holding a Magnus tablet" />
+      </div>
+      <div className="welcome-content">
+        <div className="welcome-eyebrow"><span></span>WELCOME TO MAGNUS</div>
+        <h2>Your future starts<br />with one<br />conversation.</h2>
+        <div className="welcome-session-card">
+          <h3>Welcome back, {lead.name}</h3>
+          <p>Your counselling is saved. Resume the recording to continue where you stopped.</p>
+          {!recording.id && recording.status !== 'recording' && <>
+            <p className="welcome-retention">This session will be audio-recorded and stored securely for up to {retentionDays} days. Only authorized counsellors can access it.</p>
+            <label className="accept recording-consent">
+              <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+              <span>I consent to audio recording and storage of this counselling session.</span>
+            </label>
+          </>}
+          {recording.status === 'error' && <p className="error" role="alert">{recording.error}</p>}
+          <div className="actions">
+            <button className="btn-next" disabled={recording.status === 'starting' || (!recording.id && recording.status !== 'recording' && !consent)}
+              onClick={recording.id ? onContinueSession : () => onStartSession(lead.id, consent)}>
+              <span>{recording.status === 'recording' ? 'Continue' : recording.status === 'starting' ? 'Starting…' : recording.id ? 'Resume session' : 'Start session'}</span>
+              <i className="fa-solid fa-arrow-right"></i>
+            </button>
+            {!recording.id && recording.status !== 'recording' && <button className="btn-prev" onClick={onNew}>New visitor</button>}
+          </div>
+        </div>
       </div>
     </div>
   );
   if (recording.status !== 'recording') return (
-    <div className="fcard welcome">
-      <h2>{recording.id ? 'Resume your session' : 'Start a session'}</h2>
-      <p>Your counselling session will be audio-recorded and stored securely for up to {retentionDays} days. Only authorized counsellors can access it.</p>
-      {recording.id
-        ? <p className="muted">Your consent was saved. Resume recording to continue.</p>
-        : <label className="accept recording-consent">
-          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-          <span>I consent to audio recording and storage of this counselling session.</span>
-        </label>}
-      {recording.error && <p className="error" role="alert">{recording.error}</p>}
-      {err && <p className="error" role="alert">{err}</p>}
-      <button type="button" className="btn-next" disabled={recording.status === 'starting' || (!recording.id && !consent)}
-        onClick={recording.id ? onResumeSession : () => onStartSession(null, consent)}>
-        <span>{recording.status === 'starting' ? 'Starting…' : recording.id ? 'Resume session' : 'Start session'}</span>
-        <i className="fa-solid fa-arrow-right"></i>
-      </button>
+    <div className="welcome-hero">
+      <div className="welcome-art">
+        <img src="/static/images/vineeth-welcome.webp" alt="Magnus counsellor holding a Magnus tablet" />
+      </div>
+      <div className="welcome-content">
+        <div className="welcome-eyebrow"><span></span>WELCOME TO MAGNUS</div>
+        <h2>Your future starts<br />with one<br />conversation.</h2>
+        <div className="welcome-session-card">
+          <h3>{recording.id ? 'Resume your session' : 'Start a session'}</h3>
+          <p>Your counselling session will be audio-recorded and stored securely. Only authorized counsellors can access it.</p>
+          {recording.id
+            ? <p className="muted">Your consent was saved. Resume recording to continue.</p>
+            : <label className="accept recording-consent">
+              <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+              <span>I consent to audio recording and storage of this counselling session.</span>
+            </label>}
+          {recording.error && <p className="error" role="alert">{recording.error}</p>}
+          {err && <p className="error" role="alert">{err}</p>}
+          <button type="button" className="btn-next" disabled={recording.status === 'starting' || (!recording.id && !consent)}
+            onClick={recording.id ? onResumeSession : () => onStartSession(null, consent)}>
+            <span>{recording.status === 'starting' ? 'Starting…' : recording.id ? 'Resume session' : 'Start session'}</span>
+            <i className="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
     </div>
   );
   return (
@@ -1770,7 +1788,7 @@ function App() {
       <main>
         <div className="stage-container">
           <section className={`orientation-section anim-${dir} ${s.type === 'hero' ? 'is-hero' : ''}`} key={s.key} data-step={i}>
-            {s.type !== 'hero' && <div className="slide-head"><h1>{s.title}</h1>{lead.name && s.type !== 'register' && <span className="who">{lead.name}</span>}</div>}
+            {s.type !== 'hero' && s.type !== 'register' && <div className="slide-head"><h1>{s.title}</h1>{lead.name && <span className="who">{lead.name}</span>}</div>}
             {body}
             {s.type !== 'register' && s.type !== 'summary' && s.key !== 'terms' && (
               <label className="accept slide-acknowledgment">
