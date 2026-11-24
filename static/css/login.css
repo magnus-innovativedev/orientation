@@ -1,3 +1,7 @@
+.auth-login {
+  zoom: 1;
+}
+
 .shared-login-backdrop {
   position: fixed;
   inset: 0;

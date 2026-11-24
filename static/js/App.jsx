@@ -1425,6 +1425,11 @@ function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a1a38');
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('auth-login', authReady && !authUser);
+    return () => document.documentElement.classList.remove('auth-login');
+  }, [authReady, authUser]);
+
   const reload = () => api('/api/media').then(setMedia).catch(() => {});
   useEffect(() => {
     api('/api/config').then(setCfg).catch((e) => setToast(e.message));
