@@ -13,12 +13,14 @@
   <img class="shared-login-logo" src="{{ url_for('static', filename='images/loginpageimage.png') }}" alt="Magnus">
   <h1>Magnus sign-in</h1><p>Use your assigned email and password.</p>
   <form id="login-form" class="shared-login-form">
-    <label>Email<input id="login-email" type="email" autocomplete="username" required></label>
-    <label>Password<span class="password-field"><input id="login-password" type="password" autocomplete="current-password" required>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="email" autocomplete="username" required>
+    <label for="login-password">Password</label>
+    <div class="password-field"><input id="login-password" type="password" autocomplete="current-password" required>
       <button type="button" class="password-toggle" data-password-toggle="login-password" aria-label="Show password" title="Show password">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
       </button>
-    </span></label>
+    </div>
     <p id="login-error" class="notice error" hidden></p>
     <button type="submit">Sign in</button>
   </form>

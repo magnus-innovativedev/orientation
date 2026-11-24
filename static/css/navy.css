@@ -87,8 +87,6 @@ html body .role-list button{background:rgba(255,255,255,.08);color:#fff;border:1
 html body .role-list button.active{background:var(--nv-btn);border-color:rgba(255,255,255,.4)}
 html body .diff,html body .permission-row small{color:var(--nv-text-2)}
 html body .tabs button:not(.secondary){color:#fff}
-#login-panel{border-radius:26px}
-
 /* --- top bar --- */
 html body .topbar-brand,html body .topbar-brand span:last-child,html body .brand-divider{color:var(--nv-text-2)!important}
 html body .topbar-brand{font-family:'Lora',Georgia,serif!important;letter-spacing:.12em!important}
@@ -316,7 +314,7 @@ html[data-theme] .summary dt,html[data-theme] .location-summary-label,html[data-
 html[data-theme] .amt-card b{color:#fff}
 html[data-theme] .amt-card.due{box-shadow:0 0 0 2px var(--nv-gold) inset,var(--nv-bevel)}html[data-theme] .amt-card.due b{color:var(--nv-gold-hi)}
 html[data-theme] .amt-card.done{box-shadow:0 0 0 2px var(--nv-blue-hi) inset,var(--nv-bevel)}html[data-theme] .amt-card.done b{color:#cfe0fa}
-html[data-theme] .error,html[data-theme] .pin-dialog-error,html[data-theme] .camera-error{color:var(--nv-red)}
+html[data-theme] .error,html[data-theme] .camera-error{color:var(--nv-red)}
 html[data-theme] .num{background:var(--nv-btn);box-shadow:0 4px 12px rgba(0,8,26,.5);color:#fff}
 html[data-theme] .num.amber{background:linear-gradient(160deg,var(--nv-gold-hi),var(--nv-gold));color:#2a1d0a}
 html[data-theme] .num.red{background:linear-gradient(160deg,#ff9a9a,#c94a4a);color:#fff}
@@ -374,26 +372,13 @@ html[data-theme] input::placeholder,html[data-theme] textarea::placeholder{color
 html[data-theme] input:focus,html[data-theme] select:focus,html[data-theme] textarea:focus{border-color:var(--nv-blue-hi);background:#fff;box-shadow:0 0 0 4px rgba(108,155,227,.35)}
 html[data-theme] select option{background:#fff;color:var(--nv-ink)}
 html[data-theme] .accept input{accent-color:var(--nv-blue)}
-html[data-theme] .password-eye{color:var(--nv-ink-2)}html[data-theme] .password-eye:hover{background:rgba(13,33,71,.08)}
-
 /* media, dialogs, toast */
 html[data-theme] .media{background:rgba(255,255,255,.06);border:1.5px dashed var(--nv-silver);color:#fff}
 html[data-theme] .media-up{background:rgba(3,10,26,.88);color:#fff}
 html[data-theme] .toast{background:var(--nv-btn);color:#fff;border:1px solid rgba(255,255,255,.3)}
-html[data-theme] .camera-dialog,html[data-theme] .media-viewer,html[data-theme] dialog,html[data-theme] .pin-dialog{
+html[data-theme] .camera-dialog,html[data-theme] .media-viewer,html[data-theme] dialog{
   background:var(--nv-card-bg);color:#fff;border:2px solid var(--nv-silver);border-radius:24px;box-shadow:0 24px 70px rgba(0,4,16,.7)}
-html[data-theme] .pin-dialog-backdrop{
-  background:radial-gradient(circle at 18% 20%,rgba(108,155,227,.18),transparent 36%),radial-gradient(circle at 82% 78%,rgba(63,114,194,.2),transparent 38%),
-  linear-gradient(160deg,#0e2349 0%,#0a1a38 55%,#061226 100%);backdrop-filter:none;-webkit-backdrop-filter:none}
-html[data-theme] .pin-dialog-logo{background:linear-gradient(160deg,#17356a,#0a1c3f);border:1.5px solid var(--nv-silver);box-shadow:0 4px 14px rgba(0,5,18,.5)}
-html[data-theme] .pin-dialog h1,html[data-theme] .pin-dialog h2{font-family:'Lora',Georgia,serif;color:#fff}
-html[data-theme] .pin-dialog>p,html[data-theme] .camera-preview p{color:var(--nv-text-2)}
-html[data-theme] .pin-form label{color:#fff}
-html[data-theme] .pin-form>input,html[data-theme] .pin-form .password-field input{background:#fff;color:var(--nv-ink);border:1.5px solid var(--nv-silver)}
-html[data-theme] .pin-form>input:focus,html[data-theme] .pin-form .password-field input:focus{border-color:var(--nv-blue-hi);box-shadow:0 0 0 4px rgba(108,155,227,.3)}
-html[data-theme] .pin-dialog-actions .btn-next{background:var(--nv-btn);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 6px 16px rgba(0,8,26,.5)}
-html[data-theme] .pin-dialog-actions .btn-next:hover:not(:disabled){background:linear-gradient(180deg,#78a5ea,#3a6bb8 52%,#24508f);box-shadow:0 8px 20px rgba(0,8,26,.6)}
-html[data-theme] .pin-dialog-actions .btn-next:disabled{background:rgba(255,255,255,.12);color:var(--nv-text-3);box-shadow:none;border-color:transparent}
+html[data-theme] .camera-preview p{color:var(--nv-text-2)}
 html[data-theme] .badge-icon{background:var(--nv-btn);box-shadow:0 8px 24px rgba(0,8,26,.55)}
 html[data-theme] .service-map-badge{background:var(--nv-blue-lo)}
 html[data-theme] .service-map-badge.total{background:#0f2550;color:#fff;border-color:var(--nv-gold)}

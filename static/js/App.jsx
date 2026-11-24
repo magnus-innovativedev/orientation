@@ -1425,11 +1425,6 @@ function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a1a38');
   }, [theme]);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('auth-login', authReady && !authUser);
-    return () => document.documentElement.classList.remove('auth-login');
-  }, [authReady, authUser]);
-
   const reload = () => api('/api/media').then(setMedia).catch(() => {});
   useEffect(() => {
     api('/api/config').then(setCfg).catch((e) => setToast(e.message));
@@ -1676,34 +1671,34 @@ function App() {
 
   if (!authReady) return (
     <div className="boot" role="status">
-      <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="Magnus" />
+      <img className="boot-logo" src="/static/images/loginpageimage.png" alt="Magnus" />
       <span>Checking your sign-in…</span>
     </div>
   );
   if (!authUser) {
     return (
       <div className="shared-login-backdrop">
-        <section className="shared-login-card" role="main" aria-labelledby="pin-dialog-title">
+        <section className="shared-login-card" role="main" aria-labelledby="shared-login-title">
           <img className="shared-login-logo" src="/static/images/loginpageimage.png" alt="Magnus" />
-          <h1 id="pin-dialog-title">Magnus sign-in</h1>
+          <h1 id="shared-login-title">Magnus sign-in</h1>
           <p>Use your assigned email and password.</p>
           <form className="shared-login-form" onSubmit={submitLogin}>
             <label htmlFor="counsellor-email">Email</label>
             <input id="counsellor-email" type="email" autoComplete="username" autoFocus
               value={loginEmail} onChange={(event) => { setLoginEmail(event.target.value); setLoginError(''); }}
-              aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+              aria-invalid={!!loginError} aria-describedby={loginError ? 'shared-login-error' : undefined} required />
             <label htmlFor="counsellor-password">Password</label>
             <div className="password-field">
               <input id="counsellor-password" type={loginPasswordVisible ? 'text' : 'password'} autoComplete="current-password"
                 value={loginPassword} onChange={(event) => { setLoginPassword(event.target.value); setLoginError(''); }}
-                aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
-              <button type="button" className="password-eye" onClick={() => setLoginPasswordVisible((visible) => !visible)}
+                aria-invalid={!!loginError} aria-describedby={loginError ? 'shared-login-error' : undefined} required />
+              <button type="button" className="shared-login-password-toggle" onClick={() => setLoginPasswordVisible((visible) => !visible)}
                 aria-label={loginPasswordVisible ? 'Hide password' : 'Show password'}
                 title={loginPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={loginPasswordVisible}>
                 <i className={`fa-solid ${loginPasswordVisible ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
               </button>
             </div>
-            {loginError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{loginError}</p>}
+            {loginError && <p className="shared-login-error" id="shared-login-error" role="alert">{loginError}</p>}
             <button type="submit" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
               {loginBusy ? 'Signing in…' : 'Sign in'}
             </button>
@@ -1839,35 +1834,35 @@ function App() {
       )}
 
       {loginDialogOpen && (
-        <div className="pin-dialog-backdrop" onMouseDown={(event) => {
+        <div className="shared-login-backdrop" onMouseDown={(event) => {
           if (authUser && event.target === event.currentTarget) closeLoginDialog();
         }} onKeyDown={(event) => {
           if (authUser && event.key === 'Escape') closeLoginDialog();
         }}>
-          <section className="pin-dialog" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
-            <img className="pin-dialog-logo" src="/static/images/loginpageimage.png" alt="" />
-            <h2 id="pin-dialog-title">User sign-in</h2>
+          <section className="shared-login-card" role="dialog" aria-modal="true" aria-labelledby="shared-login-title">
+            <img className="shared-login-logo" src="/static/images/loginpageimage.png" alt="" />
+            <h2 id="shared-login-title">User sign-in</h2>
             <p>Sign in with your assigned username (email) and password to continue.</p>
-            <form className="pin-form" onSubmit={submitLogin}>
+            <form className="shared-login-form" onSubmit={submitLogin}>
               <label htmlFor="counsellor-email">Username (email)</label>
               <input id="counsellor-email" type="email" autoComplete="username" autoFocus
                 value={loginEmail} onChange={(event) => { setLoginEmail(event.target.value); setLoginError(''); }}
-                aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
+                aria-invalid={!!loginError} aria-describedby={loginError ? 'shared-login-error' : undefined} required />
               <label htmlFor="counsellor-password">Password</label>
               <div className="password-field">
                 <input id="counsellor-password" type={loginPasswordVisible ? 'text' : 'password'} autoComplete="current-password"
                   value={loginPassword} onChange={(event) => { setLoginPassword(event.target.value); setLoginError(''); }}
-                  aria-invalid={!!loginError} aria-describedby={loginError ? 'pin-dialog-error' : undefined} required />
-                <button type="button" className="password-eye" onClick={() => setLoginPasswordVisible((visible) => !visible)}
+                  aria-invalid={!!loginError} aria-describedby={loginError ? 'shared-login-error' : undefined} required />
+                <button type="button" className="shared-login-password-toggle" onClick={() => setLoginPasswordVisible((visible) => !visible)}
                   aria-label={loginPasswordVisible ? 'Hide password' : 'Show password'}
                   title={loginPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={loginPasswordVisible}>
                   <i className={`fa-solid ${loginPasswordVisible ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
                 </button>
               </div>
-              {loginError && <p className="pin-dialog-error" id="pin-dialog-error" role="alert">{loginError}</p>}
-              <div className="pin-dialog-actions">
+              {loginError && <p className="shared-login-error" id="shared-login-error" role="alert">{loginError}</p>}
+              <div className="shared-login-actions">
                 {authUser && <button type="button" className="btn-prev" onClick={closeLoginDialog}>Cancel</button>}
-                <button type="submit" className="btn-next" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
+                <button type="submit" disabled={loginBusy || !loginEmail.trim() || !loginPassword}>
                   {loginBusy ? 'Signing in…' : 'Sign in'}
                 </button>
               </div>

@@ -59,7 +59,7 @@ html[data-theme] .slide-head h1,html[data-theme] .hero-title,html[data-theme] .h
 html[data-theme] .hero-title span{color:var(--teal-lo)}
 html[data-theme] .muted,html[data-theme] .hero-description,html[data-theme] .location-copy p,html[data-theme] .success-description,html[data-theme] .hero-feature small,html[data-theme] .location-visual-label,html[data-theme] .location-step,html[data-theme] .amt-card small,html[data-theme] .summary dt,html[data-theme] .location-summary-label,html[data-theme] .location-summary-foot{color:var(--ink-2)}
 html[data-theme] .boot,html[data-theme] .lock{color:var(--ink-2)}
-html[data-theme] .error,html[data-theme] .pin-dialog-error,html[data-theme] .camera-error{color:var(--red)}
+html[data-theme] .error,html[data-theme] .camera-error{color:var(--red)}
 html[data-theme] .amt-card b{color:var(--ink)}
 html[data-theme] .amt-card.due{box-shadow:0 0 0 2px #C99A4A inset,var(--clay-sh)} html[data-theme] .amt-card.due b{color:#8A5F1C}
 html[data-theme] .amt-card.done{box-shadow:0 0 0 2px var(--teal) inset,var(--clay-sh)} html[data-theme] .amt-card.done b{color:var(--teal-lo)}
@@ -103,51 +103,12 @@ html[data-theme] input::placeholder,html[data-theme] textarea::placeholder{color
 html[data-theme] input:focus,html[data-theme] select:focus,html[data-theme] textarea:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 4px rgba(46,143,123,.2)}
 html[data-theme] select option{background:#fff;color:var(--ink)}
 html[data-theme] .accept input{accent-color:var(--teal)}
-html[data-theme] .password-eye{color:var(--ink-2)}
 
 /* media, dialogs, toast */
 html[data-theme] .media{background:var(--well);border:1.5px dashed rgba(112,92,82,.4);color:var(--esp)}
 html[data-theme] .media-up{background:rgba(31,21,17,.88);color:#fff}
 html[data-theme] .toast{background:linear-gradient(150deg,var(--esp-hi),var(--esp-lo));color:#fff}
-html[data-theme] .camera-dialog,html[data-theme] .media-viewer,html[data-theme] dialog,html[data-theme] .pin-dialog{background:var(--clay);color:var(--ink);border:0;border-radius:28px;box-shadow:0 20px 60px rgba(20,12,9,.4)}
-html[data-theme] .pin-dialog-backdrop{
-  background:
-    radial-gradient(circle at 18% 20%,rgba(90,70,60,.09),transparent 32%),
-    radial-gradient(circle at 82% 78%,rgba(46,143,123,.10),transparent 35%),
-    linear-gradient(160deg,#F6ECE7 0%,#EEE4DF 45%,#E2D8D2 100%);
-  backdrop-filter:none;-webkit-backdrop-filter:none
-}
-html[data-theme] .pin-dialog-logo{width:76px;height:76px;padding:8px;border-radius:20px;background:linear-gradient(150deg,#040842,#000033 55%,#050b4a);box-shadow:0 4px 12px rgba(20,12,9,.16)}
-html[data-theme] .pin-dialog h1,html[data-theme] .pin-dialog h2{font-family:'Lora',Georgia,serif;font-size:2rem;color:var(--ink)}
-html[data-theme] .pin-dialog>p{color:var(--ink-2)}
-html[data-theme] .pin-form label{color:var(--ink)}
-html[data-theme] .pin-form>input,html[data-theme] .pin-form .password-field input{min-height:50px;padding-left:14px;border:1px solid rgba(112,92,82,.22);border-radius:14px;background:var(--well);color:var(--ink)}
-html[data-theme] .pin-form>input:focus,html[data-theme] .pin-form .password-field input:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 4px rgba(46,143,123,.16)}
-html[data-theme] .password-eye{color:var(--ink-2)}
-html[data-theme] .password-eye:hover{background:rgba(90,70,60,.08)}
-html[data-theme] .pin-dialog-actions{gap:10px}
-html[data-theme] .pin-dialog-actions .btn-next{
-  min-height:44px;
-  border:0;
-  border-radius:10px;
-  background:linear-gradient(150deg,var(--esp-hi),var(--esp-lo));
-  color:#fff;
-  box-shadow:0 4px 12px rgba(20,12,9,.22);
-  font-family:'Lora',Georgia,serif;
-  font-size:.95rem;
-  font-weight:700;
-  letter-spacing:.01em
-}
-html[data-theme] .pin-dialog-actions .btn-next:hover:not(:disabled){
-  background:linear-gradient(150deg,#6B5B52,var(--esp));
-  box-shadow:0 6px 16px rgba(20,12,9,.28)
-}
-html[data-theme] .pin-dialog-actions .btn-next:active:not(:disabled){transform:translateY(1px)}
-html[data-theme] .pin-dialog-actions .btn-next:disabled{
-  background:linear-gradient(150deg,#E8E0DB,#D8CDC6);
-  box-shadow:none;
-  color:#8C817B
-}
+html[data-theme] .camera-dialog,html[data-theme] .media-viewer,html[data-theme] dialog{background:var(--clay);color:var(--ink);border:0;border-radius:28px;box-shadow:0 20px 60px rgba(20,12,9,.4)}
 html[data-theme] .camera-preview p{color:var(--ink-2)}
 html[data-theme] .badge-icon{background:linear-gradient(150deg,#6AAB98,var(--teal) 55%,var(--teal-lo));box-shadow:0 8px 24px rgba(30,106,90,.35)}
 html[data-theme] .service-map-badge{background:var(--esp)} html[data-theme] .service-map-badge.total{background:#F3EAE5;color:var(--ink);border-color:var(--teal)}
