@@ -7,10 +7,11 @@
   inset: 0;
   z-index: 2000;
   display: grid;
-  align-content: start;
+  align-content: center;
   justify-items: center;
   min-height: 100dvh;
-  padding: 6.5vh 16px 24px;
+  padding: 24px 16px;
+  overflow-y: auto;
   background:
     radial-gradient(circle at 18% 20%, rgba(108,155,227,.14), transparent 36%),
     linear-gradient(160deg, #19345f 0%, #0a1a38 55%, #061226 100%);
@@ -20,7 +21,7 @@
   width: auto;
   max-width: none;
   margin: 0;
-  padding: 6.5vh 16px 24px;
+  padding: 24px 16px;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -165,6 +166,13 @@
 @media (max-width: 480px) {
   .shared-login-backdrop,
   #login-panel.shared-login-backdrop {
-    padding-top: 24px;
+    padding: 20px 16px;
+  }
+}
+
+@media (max-height: 520px) {
+  .shared-login-backdrop,
+  #login-panel.shared-login-backdrop {
+    align-content: start;
   }
 }
