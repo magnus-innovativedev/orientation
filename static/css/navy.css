@@ -16,10 +16,9 @@
   --nv-gold:#d9b98a; --nv-gold-hi:#f0dcb9;
   --nv-red:#ff8f8f; --nv-green:#7fd1a8;
   --nv-bevel:0 0 0 1px rgba(0,8,24,.7),0 0 0 4px rgba(210,218,231,.10),0 0 0 3px rgba(255,255,255,.08) inset,0 2px 0 rgba(255,255,255,.45) inset,0 14px 30px rgba(0,6,20,.55);
-  --nv-card-bg:repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),linear-gradient(160deg,var(--nv-card-1) 0%,var(--nv-card-2) 48%,var(--nv-card-3) 100%);
+  --nv-card-bg:linear-gradient(160deg,var(--nv-card-1) 0%,var(--nv-card-2) 48%,var(--nv-card-3) 100%);
   --nv-white-bg:linear-gradient(160deg,#ffffff 0%,#eef1f6 100%);
   --nv-page-bg:
-    repeating-linear-gradient(90deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px),
     radial-gradient(ellipse at 50% 0%,rgba(80,125,205,.22) 0%,transparent 60%),
     linear-gradient(160deg,var(--nv-bg-1) 0%,var(--nv-bg-2) 55%,var(--nv-bg-3) 100%);
   --nv-btn:linear-gradient(180deg,#5b8ee0 0%,#2f5da9 52%,#1d4380 100%);
@@ -174,18 +173,6 @@ html body .rpt .pill{background:var(--nv-btn-silver);color:var(--nv-ink);border:
 html body .rpt .pill[aria-pressed="true"]{background:var(--nv-btn);color:#fff;border-color:rgba(255,255,255,.35)}
 html body .rpt .chip{background:rgba(255,255,255,.1);color:#fff;border:1px solid var(--nv-line);box-shadow:none}
 html body .rpt .chip.ok{color:var(--nv-green)}html body .rpt .chip.warn{color:var(--nv-gold)}html body .rpt .chip.bad{color:var(--nv-red)}
-
-/* white cards: second panel row of the dashboard */
-html body .rpt .dashboard-row.row-4>.panel,html body .rpt.one .dashboard-row.row-4>.panel.raised{
-  --ink:#0d2147;--ink-2:#4f607c;--ink-3:#7b8aa3;
-  --mocha-ink:#0d2147;--mocha-muted:#5b6b85;--mocha-card:#ffffff;--mocha-track:#dfe4ec;
-  --mocha-brown:#1f4a8a;--mocha-muted-brown:#2c5aa6;--mocha-booked:#12305e;--mocha-tan:#b8c2d3;--mocha-teal:#3f72c2;--mocha-rust:#c59a52;
-  background:var(--nv-white-bg)!important;color:var(--nv-ink);border:2px solid #cdd5e2!important;box-shadow:0 10px 26px rgba(0,6,20,.4),0 1px 0 #fff inset!important}
-html body .rpt .dashboard-row.row-4>.panel h3{color:var(--nv-ink)}
-html body .rpt .dashboard-row.row-4>.panel .sub,html body .rpt .dashboard-row.row-4>.panel .legend{color:var(--nv-ink-2)}
-html body .rpt .dashboard-row.row-4>.panel .legend b{color:var(--nv-ink)}
-html body .rpt .dashboard-row.row-4>.panel td{border-top-color:#dfe4ec;color:var(--nv-ink)}
-html body .rpt .dashboard-row.row-4>.panel .raised:hover{box-shadow:0 14px 30px rgba(0,6,20,.5)}
 
 /* Compact two-tone donut cards */
 html body .rpt .dashboard-row.row-4>.panel:nth-child(-n+2) .chart{
@@ -426,11 +413,6 @@ html body .rpt .chart svg text{font-size:13px}
 html body .rpt .chart svg .row text:last-child,html body .rpt .chart svg .col text:first-of-type{font-size:14px;font-weight:700}
 html body .rpt .tile .v{background:linear-gradient(180deg,#ffffff 30%,#b9c6dc 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
 html body .rpt .topbar-context h2{background:none}
-/* white cards: navy + silver palette like the reference */
-html body .rpt .dashboard-row.row-4>.panel{
-  --mocha-brown:#1f3f73;--mocha-muted-brown:#2f5593;--mocha-booked:#14305c;--mocha-tan:#c3c8d2;--mocha-teal:#5f7fae;--mocha-rust:#b8a070;--mocha-muted:#3f506c;
-  background:linear-gradient(160deg,#ffffff 0%,#e9edf3 100%)!important}
-
 /* =====================================================================
    5. Bar highlighting: hover/focus lights up the bar + its row, dims the rest
    ===================================================================== */

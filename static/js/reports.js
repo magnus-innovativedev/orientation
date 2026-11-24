@@ -78,12 +78,15 @@
   }
   function vbars(data, color) {
     const W = 420, H = 190, base = 150, max = Math.max(...data.map((d) => d[1]), 1), n = data.length;
-    const bw = Math.min(54, (W - 20) / n - 12), gap = (W - n * bw) / (n + 1);
+    const bw = Math.max(1, Math.min(54, (W - 20) / n * 0.68)), gap = (W - n * bw) / (n + 1);
+    const labelEvery = Math.max(1, Math.ceil(n / 12));
     let g = '';
     data.forEach((d, i) => {
       const x = gap + i * (bw + gap), h = d[1] / max * 120;
       const barColor = d[1] === 0 ? C.sand : d[1] === max ? C.coral : C.amber;
-      g += `<g class="col" data-k="${i}" data-t="${esc(d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="${barColor}"/><rect class="vb gloss" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="url(#nvGlossV)"/><text x="${x + bw / 2}" y="${base - h - 7}" text-anchor="middle" style="fill:var(--mocha-ink);font-weight:700">${d[1]}</text><text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:12px;fill:var(--mocha-muted)">${esc(d[0])}</text></g>`;
+      const showDate = i % labelEvery === 0 || i === n - 1;
+      const valueLabel = n <= 14 ? `<text x="${x + bw / 2}" y="${base - h - 7}" text-anchor="middle" style="fill:var(--mocha-ink);font-weight:700">${d[1]}</text>` : '';
+      g += `<g class="col" data-k="${i}" data-t="${esc(d[2] || d[0])}" data-v="<b>${d[1]}</b> visitor${d[1] === 1 ? '' : 's'}"><rect x="${x - gap / 2}" y="20" width="${bw + gap}" height="${base - 20 + 24}" fill="transparent"/><rect class="vb" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="${barColor}"/><rect class="vb gloss" style="animation-delay:${0.4 + i * 0.1}s" x="${x}" y="${d[1] === 0 ? base : base - h}" width="${bw}" height="${d[1] === 0 ? 3 : h ? Math.max(h, 2) : 0}" rx="${d[1] === 0 ? 1.5 : 10}" fill="url(#nvGlossV)"/>${valueLabel}<text x="${x + bw / 2}" y="${base + 18}" text-anchor="middle" style="font-size:12px;fill:var(--mocha-muted)">${showDate ? esc(d[0]) : ''}</text></g>`;
     });
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">${g}</svg>`;
   }
@@ -120,15 +123,17 @@
     return panel(span || 'c5', 'Visitor funnel', 'How far visitors got in the counselling flow', well(funnel(st)));
   }
   function dayPanel(rows, span) {
-    const MAX = 14, m = count(rows, (v) => v.day), end = new Date((document.querySelector('#report-date-filter')?.value || DATA.today) + 'T00:00');
+    const m = count(rows, (v) => v.day);
     const firstDay = ALL.length ? ALL.reduce((a, v) => (v.day < a ? v.day : a), ALL[0].day) : DATA.today;
-    const span_ = Math.min(MAX, Math.max(1, Math.round((end - new Date(firstDay + 'T00:00')) / 864e5) + 1)), data = [];
-    for (let i = span_ - 1; i >= 0; i--) {
-      const d = new Date(end); d.setDate(d.getDate() - i);
-      const k = d.toLocaleDateString('en-CA');
-      data.push([fmtDay(k), m.get(k) || 0]);
+    const start = dateStart || firstDay, end = dateEnd || DATA.today;
+    const span_ = Math.max(1, Math.round((new Date(end + 'T00:00') - new Date(start + 'T00:00')) / 864e5) + 1), data = [];
+    const day = new Date(start + 'T00:00');
+    for (let i = 0; i < span_; i++) {
+      const key = dateLocal(day);
+      data.push([String(day.getDate()), m.get(key) || 0, fmtDay(key)]);
+      day.setDate(day.getDate() + 1);
     }
-    return panel(span || 'c7', 'Visitors by day', 'New visitor sessions registered each day' + (span_ === MAX ? ', last ' + MAX + ' days' : ''), well(vbars(data, C.coral)));
+    return panel(span || 'c7', 'Visitors by day', 'New visitor sessions registered each day', well(vbars(data, C.coral)));
   }
   function mixPanel(rows, t, sub, f, cols, order, span) {
     const m = count(rows.filter((v) => f(v)), f), data = order.map((k) => [t === 'Payment route' ? (PAYMENT_LABELS[k] || cap(k)) : cap(k), m.get(k) || 0]), tot = data.reduce((s, d) => s + d[1], 0);
