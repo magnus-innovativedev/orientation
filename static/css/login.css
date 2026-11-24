@@ -1,0 +1,157 @@
+.shared-login-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: 6.5vh 16px 24px;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(108,155,227,.14), transparent 36%),
+    linear-gradient(160deg, #19345f 0%, #0a1a38 55%, #061226 100%);
+}
+
+#login-panel.shared-login-backdrop {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 6.5vh 16px 24px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: auto;
+}
+
+#login-panel.shared-login-backdrop[hidden] {
+  display: none;
+}
+
+.shared-login-card {
+  width: min(100%, 440px);
+  padding: 24px;
+  border: 1px solid rgba(225, 235, 248, .72);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(22, 48, 84, .98), rgba(7, 23, 48, .98));
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(0, 4, 16, .55), inset 0 0 0 1px rgba(255,255,255,.08);
+}
+
+.shared-login-card h1 {
+  margin: 0;
+  color: #fff;
+  font: 700 1.25rem/1.2 Lora, Georgia, serif;
+  text-align: left;
+}
+
+.shared-login-card > p {
+  margin: 10px 0 16px;
+  color: #c4d2e8;
+  font-size: .85rem;
+}
+
+.shared-login-form {
+  display: grid;
+  gap: 10px;
+}
+
+#login-form.shared-login-form {
+  gap: 10px;
+}
+
+.shared-login-form label {
+  display: grid;
+  gap: 5px;
+  color: #e4ecf8;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.shared-login-form > input,
+.shared-login-form label input,
+.shared-login-form .password-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #dce5f2;
+  border-radius: 10px;
+  background: #fff;
+  color: #17243b;
+  font: inherit;
+}
+
+.shared-login-form .password-field {
+  position: relative;
+  display: block;
+}
+
+.shared-login-form .password-field input {
+  padding-right: 44px;
+}
+
+.shared-login-form .password-toggle,
+.shared-login-form .password-eye {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #52627b;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.shared-login-form .password-toggle:hover,
+.shared-login-form .password-eye:hover {
+  transform: translateY(-50%);
+  background: #e9eef6;
+  box-shadow: none;
+}
+
+.shared-login-form .password-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.shared-login-form .notice,
+.shared-login-form .pin-dialog-error {
+  margin: 0;
+  color: #ff9a9a;
+  font-size: .8rem;
+}
+
+.shared-login-form > button[type="submit"] {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 2px;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6395e0, #24508f);
+  color: #fff;
+  font: 700 .9rem Lora, Georgia, serif;
+  box-shadow: 0 5px 12px rgba(0, 8, 26, .4);
+  cursor: pointer;
+}
+
+.shared-login-form > button[type="submit"]:disabled {
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+@media (max-width: 480px) {
+  .shared-login-backdrop,
+  #login-panel.shared-login-backdrop {
+    padding-top: 24px;
+  }
+}
