@@ -583,8 +583,13 @@ def recording_for_token(recording_id, token):
 
 def lead_out(row):
     d = json.loads(row["data"] or "{}")
-    d.update(id=row["id"], name=row["name"], phone=row["phone"], created=row["created"], updated=row["updated"])
+    d.update(id=row["id"], name=row["name"], phone=row["phone"], created=row["created"], updated=row["updated"],
+             photo=has_lead_photo(row["id"]))
     return d
+
+
+def has_lead_photo(lid):
+    return any(os.path.isfile(os.path.join(PHOTOS, f"{lid}.{extension}")) for extension in IMG_EXT)
 
 
 @app.errorhandler(400)
@@ -940,6 +945,8 @@ def update_lead(lid):
     b = request.get_json(silent=True) or {}
     with db() as con:
         row = require_lead_access(lid, Permission.VISITOR_RESUME, con=con)
+        if b.get("status") == "booked" and not has_lead_photo(lid):
+            abort(400, "Capture or upload a student photo before confirming the booking")
         data = json.loads(row["data"] or "{}")
         data.update({k: v for k, v in b.items() if k in PATCHABLE})
         con.execute("UPDATE leads SET data=?, updated=? WHERE id=?", (json.dumps(data), now(), lid))

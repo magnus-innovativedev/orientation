@@ -188,15 +188,20 @@ const SLIDES = [
         { name: 'iPhone', logo: 'https://cdn.simpleicons.org/apple/FFFFFF' },
       ] })] },
   { key: 'benefits1', phase: 'course', title: 'Additional Benefits (1–6)', cols: 2, rows: true, cards: [
-    card('AI office automation', '', 'video', { n: 1 }), card('AI tech bot', '', 'video', { n: 2 }),
-    card('Business class', '', 'video', { n: 3 }),
-    card('Updation class (new mobiles, laptops, tools, machines, complaints) & lifelong support', '', 'video', { n: 4 }),
-    card('Re-training', '', 'video', { n: 5 }), card('Spoken Hindi & English', '', 'video', { n: 6 })] },
+    card('Abroad Placement', '', 'video', { n: 1, slot: 'benefits2-5', featured: true }),
+    card('AI office automation', '', 'video', { n: 2, slot: 'benefits1-0' }),
+    card('AI tech bot', '', 'video', { n: 3, slot: 'benefits1-1' }),
+    card('Business class', '', 'video', { n: 4, slot: 'benefits1-2' }),
+    card('Updation class (new mobiles, laptops, tools, machines, complaints) & lifelong support', '', 'video', { n: 5, slot: 'benefits1-3' }),
+    card('Re-training', '', 'video', { n: 6, slot: 'benefits1-4' })] },
   { key: 'benefits2', phase: 'course', title: 'Additional Benefits (7–12)', cols: 2, rows: true,
     banner: { t: '12 additional benefits included with the course' }, cards: [
-      card('Distance degree', '', 'video', { n: 7 }), card('Motivation & life skill', '', 'photo', { n: 8 }),
-      card('Hostel', '', 'video', { n: 9 }), card('Hope & care', '', 'video', { n: 10 }),
-      card('Sports & arts', '', 'video', { n: 11 }), card('Abroad Placement', '', 'video', { n: 12 })] },
+      card('Spoken Hindi & English', '', 'video', { n: 7, slot: 'benefits1-5' }),
+      card('Distance degree', '', 'video', { n: 8, slot: 'benefits2-0' }),
+      card('Motivation & life skill', '', 'photo', { n: 9, slot: 'benefits2-1' }),
+      card('Hostel', '', 'video', { n: 10, slot: 'benefits2-2' }),
+      card('Hope & care', '', 'video', { n: 11, slot: 'benefits2-3' }),
+      card('Sports & arts', '', 'video', { n: 12, slot: 'benefits2-4' })] },
 
   { key: 'ojt', phase: 'career', title: 'On-the-Job Training', cols: 4, cards: [
     card('Location', 'Zoom in to explore service-centre counts by area', null, { n: 1, type: 'location' }),
@@ -238,7 +243,7 @@ const STEPS = SLIDES.flatMap((s) => {
   if (s.banner) out.push({ key: `${s.key}-banner`, phase: s.phase, type: 'hero', group: s.title,
     title: s.banner.t, desc: s.banner.d, kind: s.banner.slot ? 'photo' : null, slot: s.banner.slot });
   s.cards.forEach((k, i) => out.push({ key: `${s.key}-${i}`, phase: s.phase, type: k.type || 'hero', group: s.title,
-    title: k.t, desc: k.d, kind: k.m, slot: `${s.key}-${i}`, chips: k.chips, brands: k.brands }));
+    title: k.t, desc: k.d, kind: k.m, slot: k.slot || `${s.key}-${i}`, chips: k.chips, brands: k.brands }));
   return out;
 });
 
@@ -411,6 +416,7 @@ const gate = (s, lead) => {
   if (s.type === 'payment' && !lead.payment) return 'Choose a payment option to continue.';
   if (s.type === 'terms' && !lead.terms) return 'Student and parent must accept the terms to continue.';
   if (s.type === 'booking' && !lead.booking_amount) return 'Choose a booking amount to continue.';
+  if (s.type === 'student-photo' && !lead.photo) return 'Capture or upload a student photo to continue.';
   return '';
 };
 
@@ -473,7 +479,8 @@ function GenericSlide({ s, mp }) {
       )}
       <div className="fgrid" style={{ '--cols': s.cols }}>
         {s.cards.map((k, i) => (
-          <article className={`fcard ${s.rows ? 'row' : ''} ${k.icon ? 'career-growth-card' : ''}`} key={i}>
+          <article className={`fcard ${s.rows ? 'row' : ''} ${k.icon ? 'career-growth-card' : ''} ${k.featured ? 'featured-benefit' : ''}`} key={i}>
+            {k.featured && <span className="featured-badge">Key Benefit</span>}
             {k.n && <span className="num">{k.n}</span>}
             {k.icon && <span className="career-growth-icon" aria-hidden="true">
               {k.icon === 'diamond-ring'
@@ -486,13 +493,13 @@ function GenericSlide({ s, mp }) {
                   </svg>
                 : <i className={`fa-solid ${k.icon}`}></i>}
             </span>}
-            {!s.rows && k.m && <MediaSlot {...mp} slot={`${s.key}-${i}`} kind={k.m} label={k.t} />}
+            {!s.rows && k.m && <MediaSlot {...mp} slot={k.slot || `${s.key}-${i}`} kind={k.m} label={k.t} />}
             <div className="ftext">
               <h3>{k.t}{k.tag && <em className="chip tag">{k.tag}</em>}</h3>
               {k.d && <p>{k.d}</p>}
               {k.chips && <div className="chips">{k.chips.map((c) => <span className="chip" key={c}>{c}</span>)}</div>}
             </div>
-            {s.rows && k.m && <MediaSlot {...mp} slot={`${s.key}-${i}`} kind={k.m} label={k.t} />}
+            {s.rows && k.m && <MediaSlot {...mp} slot={k.slot || `${s.key}-${i}`} kind={k.m} label={k.t} />}
           </article>
         ))}
       </div>
@@ -832,7 +839,7 @@ function DocsSlide({ cfg, lead, patch }) {
 }
 
 function StudentPhotoSlide({ lead, patch }) {
-  const fileRef = useRef(), cameraVideoRef = useRef();
+  const cameraVideoRef = useRef();
   const [msg, setMsg] = useState('');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
@@ -858,7 +865,7 @@ function StudentPhotoSlide({ lead, patch }) {
     video.srcObject = cameraStream;
     video.play().catch((error) => {
       console.error('Could not start the student camera preview.', error);
-      setCameraError('Camera preview could not start. Close the camera and use Upload photo.');
+      setCameraError('Camera preview could not start. Close the camera and try again.');
     });
     return () => {
       cameraStream.getTracks().forEach((track) => track.stop());
@@ -877,7 +884,7 @@ function StudentPhotoSlide({ lead, patch }) {
     setCameraReady(false);
     setCameraOpen(true);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError('Camera access is unavailable in this browser. Close the camera and use Upload photo.');
+      setCameraError('Camera access is unavailable in this browser.');
       return;
     }
     try {
@@ -894,8 +901,8 @@ function StudentPhotoSlide({ lead, patch }) {
     } catch (error) {
       console.error('Could not open the student camera.', error);
       setCameraError(error.name === 'NotAllowedError'
-        ? 'Camera permission was denied. Allow access or close the camera and use Upload photo.'
-        : `Could not open the camera: ${error.message || 'Camera access failed.'} Close it and use Upload photo.`);
+        ? 'Camera permission was denied. Allow access and try again.'
+        : `Could not open the camera: ${error.message || 'Camera access failed.'} Close it and try again.`);
     }
   };
   const capturePhoto = async () => {
@@ -967,33 +974,29 @@ function StudentPhotoSlide({ lead, patch }) {
     } catch (error) {
       if (bitmap) bitmap.close();
       console.error('Could not capture or save the student photo.', error);
-      setCameraError(error.message || 'Could not capture the photo. Try again or close the camera and use Upload photo.');
+      setCameraError(error.message || 'Could not capture the photo. Try again or close the camera.');
     } finally {
       setCameraBusy(false);
     }
   };
-  const upload = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f);
-    try {
-      await api(`/api/leads/${lead.id}/photo`, { method: 'POST', body: fd });
-      setMsg('Photo saved.');
-      patch({ photo: true });
-      closeCamera();
-    } catch (x) {
-      setMsg(x.message);
-      if (cameraOpen) setCameraError(x.message);
-    }
-    e.target.value = '';
-  };
   return (
     <>
-      <article className="fcard">
-        <h3>Student photo</h3>
-        <button type="button" className="media drop" onClick={openCamera}>
-          <div className="media-empty"><i className="fa-solid fa-camera"></i><span>{lead.photo ? 'Photo uploaded · tap to take or replace' : 'Tap to open camera or upload a photo'}</span></div>
-        </button>
-        <input ref={fileRef} type="file" hidden accept="image/jpeg,image/png,image/webp,image/gif" capture="user" onChange={upload} />
+      <article className="fcard student-photo-card">
+        <div className="student-photo-stage">
+          <button type="button" className="student-photo-frame" onClick={openCamera}
+            aria-label={lead.photo ? 'Capture or replace student photo' : 'Capture student photo'}>
+            <i className="fa-solid fa-camera" aria-hidden="true"></i>
+          </button>
+          <button type="button" className="student-photo-camera-action" onClick={openCamera}
+            aria-label={lead.photo ? 'Replace student photo' : 'Capture student photo'}>
+            <i className="fa-solid fa-camera" aria-hidden="true"></i>
+          </button>
+        </div>
+        <h2 className="student-photo-name">{lead.name}</h2>
+        <span className={`student-photo-status ${lead.photo ? 'is-ready' : ''}`} role="status">
+          <i className={`fa-solid ${lead.photo ? 'fa-circle-check' : 'fa-circle-exclamation'}`} aria-hidden="true"></i>
+          {lead.photo ? 'Ready for booking' : 'Photo required'}
+        </span>
         {msg && <p className="muted" role="status">{msg}</p>}
       </article>
       {cameraOpen && (
@@ -1004,13 +1007,14 @@ function StudentPhotoSlide({ lead, patch }) {
             <header className="camera-dialog-header">
               <h2 id="camera-dialog-title">Student photo</h2>
               <button type="button" className="camera-dialog-close" onClick={closeCamera} autoFocus
-                aria-label="Close camera"><i className="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                aria-label="Close camera"><i className="fa-solid fa-xmark" aria-hidden="true"></i><span className="camera-close-label">Cancel</span></button>
             </header>
             <div className="camera-preview">
               {cameraStream
                 ? <video ref={cameraVideoRef} autoPlay playsInline muted aria-label="Camera preview"
                     onLoadedMetadata={() => setCameraReady(true)} />
                 : <p role={cameraError ? 'alert' : 'status'}>{cameraError || 'Waiting for camera permission…'}</p>}
+              {cameraStream && <div className="camera-frame-guides" aria-hidden="true"></div>}
               {cameraStream && (
                 <button type="button" className="camera-capture-button" onClick={capturePhoto}
                   aria-label={cameraBusy ? 'Saving photo' : 'Capture photo'} title="Capture photo"
@@ -1019,7 +1023,7 @@ function StudentPhotoSlide({ lead, patch }) {
                 </button>
               )}
             </div>
-            <p className="camera-settings">4:3 · 12 MP target (4000 x 3000) · JPEG 95% · auto orientation · auto flash when supported</p>
+            <p className="camera-instruction">Fill the frame with the subject and hold steady.</p>
             {cameraError && cameraStream && <p className="camera-error" role="alert">{cameraError}</p>}
           </section>
         </div>
@@ -1785,7 +1789,7 @@ function App() {
       )}
       {recording.uploadWarning && <p className="recording-upload-warning" role="status">{recording.uploadWarning}</p>}
 
-      <main>
+      <main className={s.type === 'student-photo' ? 'student-photo-main' : undefined}>
         <div className="stage-container">
           <section className={`orientation-section anim-${dir} ${s.type === 'hero' ? 'is-hero' : ''}`} key={s.key} data-step={i}>
             {s.type !== 'hero' && s.type !== 'register' && <div className="slide-head"><h1>{s.title}</h1>{lead.name && <span className="who">{lead.name}</span>}</div>}
@@ -1824,7 +1828,8 @@ function App() {
             <span><small>{phase.name}</small><strong>{s.title}</strong></span></div>
           <div className="button-group">
             <button type="button" className="btn-prev" onClick={() => go(i - 1)}><i className="fa-solid fa-arrow-left"></i><span>Back</span></button>
-            <button type="button" className="btn-next" disabled={!acknowledged} onClick={() => go(i + 1)}>
+            <button type="button" className="btn-next"
+              disabled={!acknowledged || (s.type === 'student-photo' && !lead.photo)} onClick={() => go(i + 1)}>
               <span>{STEPS[i + 1].type === 'summary' ? 'Confirm booking' : 'Continue'}</span><i className="fa-solid fa-arrow-right"></i></button>
           </div>
         </footer>

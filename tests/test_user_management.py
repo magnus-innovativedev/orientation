@@ -1,3 +1,4 @@
+import io
 import os
 import tempfile
 import unittest
@@ -109,6 +110,14 @@ class UserManagementTests(unittest.TestCase):
         self.assertEqual(created.status_code, 201, created.get_json())
         lead_id = created.get_json()["id"]
         self.assertEqual(len(first.get("/api/admin/leads").get_json()), 1)
+        self.assertFalse(first.get(f"/api/leads/{lead_id}").get_json()["photo"])
+        booked_without_photo = first.patch(f"/api/leads/{lead_id}", json={"status": "booked"})
+        self.assertEqual(booked_without_photo.status_code, 400, booked_without_photo.get_json())
+        photo = first.post(f"/api/leads/{lead_id}/photo", data={
+            "file": (io.BytesIO(b"\x89PNG\r\n\x1a\nimage-data"), "student.png"),
+        }, content_type="multipart/form-data")
+        self.assertEqual(photo.status_code, 200, photo.get_json())
+        self.assertTrue(first.get(f"/api/leads/{lead_id}").get_json()["photo"])
         booked = first.patch(f"/api/leads/{lead_id}", json={"status": "booked"})
         self.assertEqual(booked.status_code, 200, booked.get_json())
         self.assertEqual(first.get(f"/api/leads/{lead_id}").status_code, 200)
