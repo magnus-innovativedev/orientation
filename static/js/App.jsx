@@ -1679,6 +1679,7 @@ function App() {
     return (
       <div className="shared-login-backdrop">
         <section className="shared-login-card" role="main" aria-labelledby="pin-dialog-title">
+          <img className="shared-login-logo" src="/static/images/loginpageimage.png" alt="Magnus" />
           <h1 id="pin-dialog-title">Magnus sign-in</h1>
           <p>Use your assigned email and password.</p>
           <form className="shared-login-form" onSubmit={submitLogin}>

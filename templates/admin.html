@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}"></head><body>
 <section id="login-panel" class="shared-login-backdrop" hidden>
   <div class="shared-login-card">
+  <img class="shared-login-logo" src="{{ url_for('static', filename='images/loginpageimage.png') }}" alt="Magnus">
   <h1>Magnus sign-in</h1><p>Use your assigned email and password.</p>
   <form id="login-form" class="shared-login-form">
     <label>Email<input id="login-email" type="email" autocomplete="username" required></label>
