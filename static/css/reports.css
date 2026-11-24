@@ -119,8 +119,8 @@
 .rpt .chart.hl svg [data-k]:not(.on),.rpt .chart.hl .lg:not(.on){opacity:.25}
 .rpt .chart.hl .lg.on{font-weight:700;color:var(--ink)}
 .rpt .seg{transform-origin:80px 80px}
-.rpt .seg.on{transform:scale(1.07);filter:drop-shadow(0 3px 6px rgba(20,12,9,.3))}
-.rpt .col.on .vb,.rpt .stp.on .fb,.rpt .row.on .hb{filter:brightness(1.12) drop-shadow(0 3px 5px rgba(20,12,9,.25))}
+.rpt .seg.on{transform:scale(1.07);filter:drop-shadow(0 3px 6px rgba(20,12,9,.15))}
+.rpt .col.on .vb,.rpt .stp.on .fb,.rpt .row.on .hb{filter:brightness(1.12) drop-shadow(0 3px 5px rgba(20,12,9,.125))}
 .rpt .stp.on{transform:scale(1.03);transform-origin:50% 50%;transform-box:fill-box}
 .rpt .dn .cv,.rpt .dn .cu{transition:opacity .2s}
 .rpt .dn .cu{max-width:60px}

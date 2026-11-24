@@ -420,8 +420,8 @@ html[data-theme] .hero-brand-logo img{filter:brightness(0) invert(1)}
    4. Glossy chart marks, larger chart text (matches the reference render)
    ===================================================================== */
 html body .rpt .gloss{stroke:none!important;pointer-events:none}
-html body .rpt .vb:not(.gloss),html body .rpt .hb:not(.gloss),html body .rpt .fb:not(.gloss){filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-html body .rpt .seg{filter:drop-shadow(0 3px 4px rgba(0,0,0,.35));stroke-width:2}
+html body .rpt .vb:not(.gloss),html body .rpt .hb:not(.gloss),html body .rpt .fb:not(.gloss){filter:drop-shadow(0 2px 3px rgba(0,0,0,.20))}
+html body .rpt .seg{filter:drop-shadow(0 3px 4px rgba(0,0,0,.175));stroke-width:2}
 html body .rpt .chart svg text{font-size:13px}
 html body .rpt .chart svg .row text:last-child,html body .rpt .chart svg .col text:first-of-type{font-size:14px;font-weight:700}
 html body .rpt .tile .v{background:linear-gradient(180deg,#ffffff 30%,#b9c6dc 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
@@ -438,13 +438,13 @@ html body .rpt .chart.hl svg [data-k]:not(.on),html body .rpt .chart.hl .lg:not(
 html body .rpt .chart.hl svg [data-k].on,html body .rpt .chart.hl .lg.on{opacity:1!important}
 html body .rpt .chart.hl svg .row.on,html body .rpt .chart.hl svg .col.on,html body .rpt .chart.hl svg .stp.on{filter:none}
 html body .rpt .col.on .vb:not(.gloss),html body .rpt .row.on .hb:not(.gloss),html body .rpt .stp.on .fb:not(.gloss){
-  filter:drop-shadow(0 0 7px rgba(150,190,255,.95)) brightness(1.3)}
+  filter:drop-shadow(0 0 7px rgba(150,190,255,.475)) brightness(1.3)}
 html body .rpt .row.on>rect:first-child,html body .rpt .col.on>rect:first-child{fill:rgba(150,190,255,.16);rx:8}
 html body .rpt .dashboard-row.row-4 .row.on>rect:first-child,html body .rpt .dashboard-row.row-4 .col.on>rect:first-child{fill:rgba(31,63,115,.09)}
 html body .rpt .row.on text,html body .rpt .col.on text{font-weight:700}
 html body .rpt .row.on text:first-of-type{fill:var(--mocha-ink)}
 html body .rpt .dashboard-row.row-4 .col.on .vb:not(.gloss),html body .rpt .dashboard-row.row-4 .row.on .hb:not(.gloss),html body .rpt .dashboard-row.row-4 .stp.on .fb:not(.gloss){
-  filter:drop-shadow(0 0 6px rgba(31,63,115,.55)) brightness(1.15)}
+  filter:drop-shadow(0 0 6px rgba(31,63,115,.275)) brightness(1.15)}
 html body .rpt .seg.on{filter:drop-shadow(0 0 8px rgba(150,190,255,.9)) brightness(1.15)}
 html body .rpt .vb,html body .rpt .hb,html body .rpt .fb{transition:filter .2s ease}
 
