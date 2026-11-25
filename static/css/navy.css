@@ -625,9 +625,23 @@ html[data-theme] .brand-nav-logo,
 html body .brand-nav-logo{
   width:48px;
   height:34px;
-  padding:3px;
-  border-radius:6px;
-  object-fit:cover;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  object-fit:contain;
+  box-shadow:none;
+  border:0;
+}
+
+html[data-theme] .brand-nav,
+html body .brand-nav{
+  width:auto;
+  padding:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  box-shadow:none;
+  border-radius:0;
 }
 html[data-theme] .step-pill.active,
 html body .step-pill.active{
