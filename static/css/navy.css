@@ -641,7 +641,7 @@ html body .step-pill.active .pill-num{
   color:#edc98e;
 }
 
-@media(max-width:900px), (pointer:coarse) and (hover:none){
+@media(max-width:900px){
   html[data-theme] .welcome-hero,
   html body .welcome-hero{
     grid-template-columns:1fr;
@@ -661,6 +661,33 @@ html body .step-pill.active .pill-num{
   html[data-theme] .welcome-content>h2,
   html body .welcome-content>h2{
     font-size:42px!important;
+  }
+}
+
+@media(min-width:761px) and (pointer:coarse) and (hover:none){
+  html[data-theme] .welcome-hero,
+  html body .welcome-hero{
+    grid-template-columns:minmax(300px,1.08fr) minmax(300px,.92fr);
+    min-height:calc(100vh - 220px);
+    gap:clamp(20px,3vw,44px);
+    padding:20px 24px 32px;
+  }
+  html[data-theme] .welcome-art,
+  html body .welcome-art{
+    height:min(560px,calc(100vh - 180px));
+    min-height:0;
+  }
+  html[data-theme] .welcome-content,
+  html body .welcome-content{
+    max-width:440px;
+  }
+  html[data-theme] .welcome-content>h2,
+  html body .welcome-content>h2{
+    font-size:clamp(38px,4.2vw,56px)!important;
+  }
+  html[data-theme] .welcome-session-card,
+  html body .welcome-session-card{
+    min-height:210px;
   }
 }
 
